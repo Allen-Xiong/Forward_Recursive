@@ -159,10 +159,6 @@ JointBase::~JointBase()
 {
 }
 
-inline unsigned int JointBase::DOF() const
-{
-	return 0;
-}
 /*check once*/
 MatrixXd& JointBase::calUi(IN double t, IN double* y)
 {
