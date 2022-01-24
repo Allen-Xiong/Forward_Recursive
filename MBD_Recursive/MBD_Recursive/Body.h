@@ -15,9 +15,9 @@ protected:
 public:
 	enum
 	{
-		RIGID = 0x0,
-		FLEXIBLE = 0x1,
-		BASE = 0x2
+		RIGID = 0x00,
+		FLEXIBLE = 0x01,
+		BASE = 0x02
 	};
 	static RCORDS m_s_rtype;
 	static unsigned int NC;           //number of the absolute coordinates.

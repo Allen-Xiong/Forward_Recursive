@@ -309,6 +309,10 @@ FlexibleBody::FlexibleBody(int NE, int nmode)
 	ne = NE;
 	me.resize(ne);
 	rho.resize(3, ne);
+	PHI.resize(ne);
+	PSI.resize(ne);
+	Ka.resize(s, s);
+	Ca.resize(s, s);
 	M13.resize(3, s);
 	M23.resize(3, s);
 	M33.resize(s, s);
@@ -317,10 +321,13 @@ FlexibleBody::FlexibleBody(int NE, int nmode)
 	g4.resize(s, vector<Vector3d>(s, Vector3d(0,0,0)));
 	g5.resize(3, s);
 	G2.resize(s, Matrix3d::Zero());
-	G3.resize(s, vector<Matrix3d>(s, Matrix3d::Zero()));
+	//G3.resize(s, vector<Matrix3d>(s, Matrix3d::Zero()));
+	G3.resize(s);
+	for (int i = 0; i < s; ++i)
+		G3[i].resize(s);
 	G4.resize(s, Matrix3d::Zero());
 	G5.resize(s, Matrix3d::Zero());
-	InerF.resize(6 + s, 0);
+	InerF.resize(6 + s);
 }
 
 bool FlexibleBody::setMe(VectorXd& Me)
@@ -341,7 +348,7 @@ bool FlexibleBody::setMe(VectorXd& Me)
 /*check once*/
 bool FlexibleBody::setRho(MatrixXd& Rho)
 {
-	if (Rho.rows() != 3 || Rho.cols() != s)
+	if (Rho.rows() != 3 || Rho.cols() != ne)
 	{
 		throw MBException(INI_FAILURE("FlexibleBody::setRho"));
 	}
@@ -367,7 +374,7 @@ bool FlexibleBody::setRho(MatrixXd& Rho)
 /*check once*/
 bool FlexibleBody::setPHI(vector<MatrixXd>& phi)
 {
-	if (me.rows() != ne || rho.rows() != 3 || rho.cols() != s)
+	if (me.rows() != ne || rho.rows() != 3 || rho.cols() != ne)
 	{
 		throw MBException(INI_FAILURE("FlexibleBody::setPHI"));
 	}
@@ -439,7 +446,8 @@ bool FlexibleBody::setPHI(vector<MatrixXd>& phi)
 				AUX::tilde(PHI[k].col(j).data(), ptil);
 				G3[i][j] += me(k) * rtil * ptil;
 			}
-			G3[j][i] = G3[i][j].transpose();
+			if (i != j)
+				G3[j][i] = G3[i][j].transpose();
 		}
 	}
 	//calculate M33
@@ -634,24 +642,24 @@ unsigned int BaseBody::nMode() const
 
 VectorXd BaseBody::acceleration(double t)
 {
+	VectorXd a;
 	if (Body::m_s_rtype==RCORDS::EULERQUATERNION)
 	{
 		Matrix<double, 3, 4> R;
 		AUX::R(pos + 3, R);
-		VectorXd a(7+nMode());
+		a.resize(7+nMode());
 		for (unsigned int i = 0; i < 3; ++i)
 			a(i) = acc[i];
 		Map<Vector4d> ddlam(acc + 3);
 		a.tail<3>() = 2 * R * ddlam;
-		return a;
 	}
 	else if (Body::m_s_rtype == RCORDS::CARDANANGLE)
 	{
-		VectorXd a(6);
+		a.resize(6+nMode());
 		for (unsigned int i = 0; i < 6; ++i)
 			a(i) = acc[i];
-		return a;
 	}
+	return a;
 }
 /*check once*/
 bool BaseBody::update(double t)

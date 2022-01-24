@@ -6,27 +6,33 @@
 #include <Dense>
 #include "Body.h"
 #include "auxiliary.h"
-
+#include <ctime>
 using namespace std;
 using namespace Eigen;
 int main()
 {
-    Matrix3d A;
-    A << 0.433, -0.25, 0.866,
-        0.808, 0.5335, -0.25,
-        -0.3995, 0.808, 0.433;
-    double* q = new double[4];
-    double* p = q;
-    AUX::AtoCA(A, q);
-    for (int i = 0; i < 4; ++i)
-        cout << q[i] << endl;
-    if (p == q)
-        cout << "true" << endl;
-    delete[]q;
-    string s = "Body";
-    string k = "Body";
-    if (s == "Body")
-        cout << "true" << endl;
+	MatrixXd m(1000, 1000);
+	MatrixXd n(1000, 1000);
+	for (int i = 0; i < 1000; ++i)
+		for (int j = 0; j < 1000; ++j)
+		{
+			m(i, j) = (i + j) % 2;
+			n(i, j) = (i + j) % 2;
+		}
+	int N = 10;
+	clock_t s;
+	s = clock();
+	for (int i = 0; i < N; ++i)
+		m += n;
+	cout << clock() - s << endl;
+	s = clock();
+	for (int i = 0; i < N; ++i)
+		m += n;
+	cout << clock() - s << endl;
+	s = clock();
+	for (int i = 0; i < N; ++i)
+		m.noalias() += n;
+	cout << clock() - s << endl;
     return 0;
 }
 

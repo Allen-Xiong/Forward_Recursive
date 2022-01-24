@@ -328,7 +328,8 @@ bool TreeSystem::BJpair::operator>(BJpair& other)
 /*check once*/
 MBSystem::MBSystem()
 {
-
+	peq = new Equation(this);
+	psolver = new Solver(peq);
 }
 /*check once*/
 MBSystem::~MBSystem()
@@ -369,6 +370,12 @@ unsigned int MBSystem::DOF() const
 bool MBSystem::sety0(const VectorXd& _y0)
 {
 	y0 = _y0;
+	return true;
+}
+/*check once*/
+bool MBSystem::setdy0(const VectorXd& _dy0)
+{
+	dy0 = _dy0;
 	return true;
 }
 /*check once*/
@@ -428,11 +435,11 @@ bool MBSystem::SaveAs(string fname, bool isbinary)
 		for (auto& item : psolver->tspan)
 			fout.write(reinterpret_cast<char*>(&item), sizeof(double));
 		for (auto& item : psolver->Y)
-			fout.write(reinterpret_cast<char*>(&item), dof * sizeof(double));
+			fout.write(reinterpret_cast<char*>(&item), dof *sizeof(double));
 		for (auto& item : psolver->DY)
-			fout.write(reinterpret_cast<char*>(&item), dof * sizeof(double));
+			fout.write(reinterpret_cast<char*>(&item),dof *sizeof(double));
 		for (auto& item : psolver->DY)
-			fout.write(reinterpret_cast<char*>(&item + sizeof(double) * dof), dof * sizeof(double));
+			fout.write(reinterpret_cast<char*>(item.data() + dof), dof * sizeof(double));
 	}
 	else
 	{
@@ -507,9 +514,12 @@ bool Solver::calculate()
 Equation::Equation(MBSystem* p)
 {
 	pmbs = p;
-	L.setZero(2 * pmbs->dof, 2 * pmbs->dof);
-	R.setZero(2 * pmbs->dof);
-	L.block(0, 0, pmbs->dof, pmbs->dof).setIdentity();
+	if (pmbs->dof != 0)
+	{
+		L.setZero(2 * pmbs->dof, 2 * pmbs->dof);
+		R.setZero(2 * pmbs->dof);
+		L.block(0, 0, pmbs->dof, pmbs->dof).setIdentity();
+	}
 }
 
 Equation::~Equation()
@@ -538,12 +548,21 @@ VectorXd& Equation::Right(double t, VectorXd& y)
 /*check once*/
 VectorXd Equation::initialvalue() const
 {
-	return pmbs->y0;
+	VectorXd ini;
+	ini << pmbs->y0, pmbs->dy0;
+	return ini;
 }
 /*check once*/
 unsigned int Equation::DOF() const
 {
 	return pmbs->dof * 2;
+}
+
+void Equation::Initialize()
+{
+	L.setZero(2 * pmbs->dof, 2 * pmbs->dof);
+	R.setZero(2 * pmbs->dof);
+	L.block(0, 0, pmbs->dof, pmbs->dof).setIdentity();
 }
 
 MatrixXd& MBSystem::calG0(double t, double* y)
@@ -626,6 +645,8 @@ bool MBSystem::initialize()
 	z.setZero();
 	fey.setZero();
 	f.setZero();
+	//Equation initialize
+	peq->Initialize();
 	return true;
 }
 /*check once*/
@@ -674,21 +695,42 @@ void MBFileParser::CheckMass(double m)
 	return;
 }
 
-void MBFileParser::CheckJc(Json::Value& Jc)
+void MBFileParser::CheckJc(const Json::Value& Jc)
 {
 	if (Jc.size() != 6)
 		throw MBException("Body Jc dimension error!");
 	return;
 }
 
-void MBFileParser::CheckRho(Json::Value& rho)
+void MBFileParser::CheckRho(const Json::Value& rho)
 {
 	if (rho.size() != 3)
 		throw MBException("Joint point vector dimension error!");
 	return;
 }
 
-void MBFileParser::GetJc(Json::Value& Jc,Matrix3d& Ic)
+void MBFileParser::CheckMat3d(const Json::Value& val)
+{
+	if (val.size() != 9)
+		throw MBException("Matrix3d dimension error!");
+	return;
+}
+
+void MBFileParser::CheckPos(const Json::Value& val, unsigned int k)
+{
+	if (val.size() != k)
+		throw MBException("Position dimension error!");
+	return;
+}
+
+void MBFileParser::CheckVel(const Json::Value& val, unsigned int k)
+{
+	if (val.size() != k)
+		throw MBException("Velocity dimension error!");
+	return;
+}
+
+void MBFileParser::GetJc(const Json::Value& Jc,Matrix3d& Ic)
 {
 	for (unsigned int j = 0; j < 3; ++j)
 		Ic(0, j) = Jc[j].asDouble();
@@ -698,10 +740,96 @@ void MBFileParser::GetJc(Json::Value& Jc,Matrix3d& Ic)
 	return;
 }
 
-void MBFileParser::GetRho(Json::Value& rho, Vector3d& r)
+void MBFileParser::GetRho(const Json::Value& rho, Vector3d& r)
 {
 	for (unsigned int i = 0; i < 3; ++i)
 		r(i) = rho[i].asDouble();
+}
+
+void MBFileParser::GetFlexibleBody(const string& fname, Body*& p)
+{
+	int NE, NM;
+	fstream fin(fname, ios::in);
+	if (!fin)
+		throw MBException("Open Modal Data File Error!");
+	fin >> NE >> NM;
+	if (NE <= 0 || NM <= 0)
+		throw MBException("Modal Data Error!");
+	VectorXd me(NE);
+	MatrixXd rho(3, NE);
+	vector<MatrixXd> phi(NE, MatrixXd(3, NM));
+	vector<MatrixXd> psi(NE, MatrixXd(3, NM));
+	MatrixXd ka(NM, NM);
+	MatrixXd ca(NM, NM);
+	for (int i = 0; i < NE; ++i)
+		fin >> me(i);
+	for (int i = 0; i < NE; ++i)
+		fin >> rho(0, i) >> rho(1, i) >> rho(2, i);
+	for (int k = 0; k < NE; ++k)
+	{
+		for (int i = 0; i < NM; ++i)
+		{
+			fin >> phi[k](0, i) >> phi[k](1, i) >> phi[k](2, i);
+			fin >> psi[k](0, i) >> psi[k](1, i) >> psi[k](2, i);
+		}
+	}
+	for (int i = 0; i < NM; ++i)
+	{
+		for (int j = 0; j < NM; ++j)
+			fin >> ka(i, j);
+	}
+	for (int i = 0; i < NM; ++i)
+	{
+		for (int j = 0; j < NM; ++j)
+			fin >> ca(i, j);
+	}
+	fin.close();
+	FlexibleBody* pf = new FlexibleBody(NE, NM);
+	pf->setMe(me);
+	pf->setRho(rho);
+	pf->setPHI(phi);
+	pf->setPSI(psi);
+	pf->setKa(ka);
+	pf->setCa(ca);
+	p = static_cast<Body*>(pf);
+	return;
+}
+
+void MBFileParser::GetMat3d(const Json::Value& val, Matrix3d& M)
+{
+	for (unsigned int i = 0; i < 3; ++i)
+	{
+		for (unsigned int j = 0; j < 3; ++j)
+			M(i, j) = val[i * 3 + j].asDouble();
+	}
+	return;
+}
+
+void MBFileParser::GetPos(const Json::Value& val, VectorXd& p)
+{
+	p.resize(val.size());
+	for (unsigned int i = 0; i < val.size(); ++i)
+		p(i) = val[i].asDouble();
+	return;
+}
+
+void MBFileParser::GetVel(const Json::Value& val, VectorXd& v)
+{
+	v.resize(val.size());
+	for (unsigned int i = 0; i < v.rows(); ++i)
+		v(i) = val[i].asDouble();
+	return;
+}
+
+MBFileParser::~MBFileParser()
+{
+	if (pmbs)
+	{
+		for (auto& item : pmbs->jointvec)
+			delete item;
+		for (auto& item : bodyvec)
+			delete item;
+	}
 }
 
 bool MBFileParser::Read(const string& fname)
@@ -714,7 +842,7 @@ bool MBFileParser::Read(const string& fname)
 	Json::Reader reader;
 	Json::Value root;
 	if (!reader.parse(fin, root))
-		throw MBException("parse file error!");
+		throw MBException("Parse json file error!");
 	// create body
 	unsigned int nb = root["Body"].size();
 	bodyvec.resize(nb);
@@ -726,10 +854,10 @@ bool MBFileParser::Read(const string& fname)
 		string btype = body["Type"].asString();
 		id = body["Id"].asInt();
 		CheckId(id);
-		/*initial position and velocity remain completed.*/
 		if (btype == "Base")
 		{
 			bodyvec[0] = new BaseBody();
+			bodyvec[0]->setID(0);
 		}
 		else if (btype == "Rigid")
 		{
@@ -755,6 +883,10 @@ bool MBFileParser::Read(const string& fname)
 	}
 	//create Joint
 	unsigned int nj = root["Joint"].size();
+	vector<VectorXd> posvec;
+	vector<VectorXd> velvec;
+	posvec.resize(nj);
+	velvec.resize(nj);
 	for (unsigned int i = 0; i < nj; ++i)
 	{
 		Json::Value& joint = root["Joint"][i];
@@ -768,32 +900,67 @@ bool MBFileParser::Read(const string& fname)
 		CheckRho(joint["Rhoj"]);
 		GetRho(joint["Rhoi"],rhoi);
 		GetRho(joint["Rhoj"],rhoj);
+		JointBase* pj = nullptr;
 		if (jtype == "Revolute")
 		{
-			pmbs->add(new Revolute(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+			pj = new Revolute(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj);
 		}
 		else if (jtype == "Universe")
 		{
-			pmbs->add(new Universe(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+			pj = new Universe(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj);
 		}
 		else if (jtype == "Sphere")
 		{
-			pmbs->add(new Sphere(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+			pj = new Sphere(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj);
 		}
 		else if (jtype == "Prism")
 		{
-			pmbs->add(new Prism(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+			pj = new Prism(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj);
 		}
 		else if (jtype == "Cylinder")
 		{
-			pmbs->add(new Cylinder(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+			pj = new Cylinder(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj);
 		}
 		else if (jtype == "Virtual")
 		{
-			pmbs->add(new Virtual(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+			pj = new Virtual(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj);
 		}
+		else
+		{
+			throw MBException("There is such type joint:" + jtype);
+		}
+		/*initial position and velocity*/
+		CheckPos(joint["Position"], pj->DOF() + bodyvec[Bi_id]->nMode());
+		CheckVel(joint["Velocity"], pj->DOF() + bodyvec[Bi_id]->nMode());
+		GetPos(joint["Position"], posvec[Bi_id]);
+		GetVel(joint["Velocity"], velvec[Bi_id]);
 		/*set CiP and CjQ*/
+		CheckMat3d(joint["CiP"]);
+		CheckMat3d(joint["CjQ"]);
+		Matrix3d M;
+		GetMat3d(joint["CiP"], M);
+		pj->setCiP(M);
+		GetMat3d(joint["CjQ"], M);
+		pj->setCjQ(M);
+		pmbs->add(pj);
 	}
+	VectorXd y0, dy0;
+	unsigned int dof = 0;
+	for (auto& item : posvec)
+		dof += item.rows();
+	y0.resize(dof);
+	dy0.resize(dof);
+	unsigned int s = 0;
+	for (unsigned int i = 0; i < posvec.size(); ++i)
+	{
+		y0.segment(s, posvec[i].rows()) = posvec[i];
+		dy0.segment(s, velvec[i].rows()) = velvec[i];
+		s += posvec[i].rows();
+	}
+	pmbs->sety0(y0);
+	pmbs->setdy0(dy0);
+	//Create Force
+
 	//set simulation time
 	Json::Value& Tspan = root["Tspan"];
 	double tb = Tspan["Start"].asDouble();
@@ -801,6 +968,32 @@ bool MBFileParser::Read(const string& fname)
 	int N = Tspan["Nstep"].asInt();
 	if (N <= 0)
 		throw MBException("Simulation step number cannot be non-positive!");
-
+	//set simulation configuration
+	if (root.isMember("Tolerance"))
+	{
+		if (root["Tolerance"].isMember("Absolute") && root["Tolerance"].isMember("Relative"))
+			pmbs->setTolerance(root["Tolerance"]["Relative"].asDouble(), root["Tolerance"]["Absolute"].asDouble());
+	}
 	return true;
+}
+
+bool MBFileParser::Write(const string& fname)
+{
+	return true;
+}
+
+bool MBFileParser::Simulate()
+{
+	if (pmbs)
+		return pmbs->calculate();
+	else
+		return false;
+}
+
+bool MBFileParser::SaveDataAs(const string& fname, bool isbinary)
+{
+	if (!pmbs)
+		return false;
+	else
+		return pmbs->SaveAs(fname, isbinary);
 }

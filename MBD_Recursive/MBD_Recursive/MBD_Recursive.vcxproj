@@ -90,7 +90,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>E:\C++\eigen-3.3.9\Eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\C++\jsoncpp-src-0.5.0\include\json;E:\C++\eigen-3.3.9\Eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -105,7 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\CppCode\eigen-3.4.0\Eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\C++\jsoncpp-src-0.5.0\include\json;E:\C++\eigen-3.3.9\Eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,6 +143,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\jsoncpp-src-0.5.0\src\lib_json\json_reader.cpp" />
+    <ClCompile Include="..\..\..\jsoncpp-src-0.5.0\src\lib_json\json_value.cpp" />
+    <ClCompile Include="..\..\..\jsoncpp-src-0.5.0\src\lib_json\json_writer.cpp" />
     <ClCompile Include="auxiliary.cpp" />
     <ClCompile Include="Body.cpp" />
     <ClCompile Include="Joint.cpp" />

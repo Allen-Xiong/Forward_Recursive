@@ -69,6 +69,7 @@ protected:
 	//vector<Body*> bodyvec;
 	vector<JointBase*> jointvec;
 	VectorXd y0;
+	VectorXd dy0;
 	MatrixXd G;
 	MatrixXd G0;
 	MatrixXd M;
@@ -91,12 +92,14 @@ protected:
 	VectorXd& calfey(double t, double* y, double* dy);       //remain completed.
 public:
 	friend class Equation;
+	friend class MBFileParser;
 	MBSystem();
 	~MBSystem();
 	bool add(JointBase* j);
 	bool del(JointBase* j);
 	unsigned int DOF()const;                          //the number of the generalized coordinates of the system
 	bool sety0(const VectorXd& y0);
+	bool setdy0(const VectorXd& _dy0);
 	bool setTimeInterval(double ti, double te, int N);
 	bool setTolerance(double r = 1e-4, double a = 1e-3);
 	bool calculate();
@@ -118,6 +121,7 @@ public:
 	VectorXd& Right(double t, VectorXd& y);
 	VectorXd initialvalue()const;
 	unsigned int DOF()const;
+	void Initialize();
 };
 
 
@@ -151,15 +155,22 @@ protected:
 	void clear();
 	void CheckId(int id);
 	void CheckMass(double m);
-	void CheckJc(Json::Value& Jc);
-	void CheckRho(Json::Value& rho);
-	void GetJc(Json::Value& Jc, Matrix3d& Ic);
-	void GetRho(Json::Value& rho, Vector3d& r);
+	void CheckJc(const Json::Value& Jc);
+	void CheckRho(const Json::Value& rho);
+	void CheckMat3d(const Json::Value& val);
+	void CheckPos(const Json::Value& val, unsigned int k);
+	void CheckVel(const Json::Value& val, unsigned int k);
+	void GetJc(const Json::Value& Jc, Matrix3d& Ic);
+	void GetRho(const Json::Value& rho, Vector3d& r);
+	void GetMat3d(const Json::Value& val, Matrix3d& M);
+	void GetPos(const Json::Value& val, VectorXd& p);
+	void GetVel(const Json::Value& val, VectorXd& v);
 	void GetFlexibleBody(const string& fname, Body* &p);
 public:
 	MBFileParser() :pmbs(nullptr) {};
 	~MBFileParser();
 	bool Read(const string& fname);
-	bool Write(const string& fname);
+	bool Write(const string& fname);  /*remain completed.*/
+	bool Simulate();
 	bool SaveDataAs(const string& fname, bool isbinary);
 };
