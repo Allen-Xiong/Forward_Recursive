@@ -6,6 +6,7 @@
 #include <Dense>
 #include "Body.h"
 #include "auxiliary.h"
+
 using namespace std;
 using namespace Eigen;
 int main()
@@ -22,6 +23,10 @@ int main()
     if (p == q)
         cout << "true" << endl;
     delete[]q;
+    string s = "Body";
+    string k = "Body";
+    if (s == "Body")
+        cout << "true" << endl;
     return 0;
 }
 

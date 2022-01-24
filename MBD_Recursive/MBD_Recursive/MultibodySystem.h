@@ -4,6 +4,7 @@
 #include <vector>
 #include <list>
 #include "tree.h"
+#include "auxiliary.h"
 using namespace std;
 using namespace Eigen;
 
@@ -140,4 +141,25 @@ public:
 	bool setTimeInterval(double ti, double te, int N);
 	bool setTolerance(double r=1e-4, double a=1e-3);
 	bool calculate();
+};
+
+class MBFileParser
+{
+	MBSystem* pmbs = nullptr;
+	vector<Body*> bodyvec;
+protected:
+	void clear();
+	void CheckId(int id);
+	void CheckMass(double m);
+	void CheckJc(Json::Value& Jc);
+	void CheckRho(Json::Value& rho);
+	void GetJc(Json::Value& Jc, Matrix3d& Ic);
+	void GetRho(Json::Value& rho, Vector3d& r);
+	void GetFlexibleBody(const string& fname, Body* &p);
+public:
+	MBFileParser() :pmbs(nullptr) {};
+	~MBFileParser();
+	bool Read(const string& fname);
+	bool Write(const string& fname);
+	bool SaveDataAs(const string& fname, bool isbinary);
 };
