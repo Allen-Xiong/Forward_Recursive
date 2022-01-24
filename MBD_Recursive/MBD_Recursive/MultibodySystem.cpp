@@ -648,3 +648,159 @@ VectorXd& MBSystem::calfey(double t, double* y, double* dy)
 	// TODO: insert return statement here
 	return fey;
 }
+
+void MBFileParser::clear()
+{
+	bodyvec.clear();
+	if (!pmbs)
+	{
+		delete pmbs;
+		pmbs = nullptr;
+	}
+	return;
+}
+
+void MBFileParser::CheckId(int id)
+{
+	if (id < 0)
+		throw MBException("Body Id error!");
+	return;
+}
+
+void MBFileParser::CheckMass(double m)
+{
+	if (m <= 0)
+		throw MBException("Body Mass error!");
+	return;
+}
+
+void MBFileParser::CheckJc(Json::Value& Jc)
+{
+	if (Jc.size() != 6)
+		throw MBException("Body Jc dimension error!");
+	return;
+}
+
+void MBFileParser::CheckRho(Json::Value& rho)
+{
+	if (rho.size() != 3)
+		throw MBException("Joint point vector dimension error!");
+	return;
+}
+
+void MBFileParser::GetJc(Json::Value& Jc,Matrix3d& Ic)
+{
+	for (unsigned int j = 0; j < 3; ++j)
+		Ic(0, j) = Jc[j].asDouble();
+	for (unsigned int j = 3; j < 5; ++j)
+		Ic(1, j - 2) = Jc[j].asDouble();
+	Ic(2, 2) = Jc[(unsigned int)5].asDouble();
+	return;
+}
+
+void MBFileParser::GetRho(Json::Value& rho, Vector3d& r)
+{
+	for (unsigned int i = 0; i < 3; ++i)
+		r(i) = rho[i].asDouble();
+}
+
+bool MBFileParser::Read(const string& fname)
+{
+	ifstream fin(fname, ios::binary);
+	if (!fin)
+		throw MBException("Open file failed!");
+	clear();
+	pmbs = new MBSystem();
+	Json::Reader reader;
+	Json::Value root;
+	if (!reader.parse(fin, root))
+		throw MBException("parse file error!");
+	// create body
+	unsigned int nb = root["Body"].size();
+	bodyvec.resize(nb);
+	int id;
+	double mass;
+	for (unsigned int i = 0; i < nb; ++i)
+	{
+		Json::Value& body = root["Body"][i];
+		string btype = body["Type"].asString();
+		id = body["Id"].asInt();
+		CheckId(id);
+		/*initial position and velocity remain completed.*/
+		if (btype == "Base")
+		{
+			bodyvec[0] = new BaseBody();
+		}
+		else if (btype == "Rigid")
+		{
+			mass = body["Mass"].asDouble();
+			CheckMass(mass);
+			Json::Value& Jc = body["Jc"];
+			CheckJc(Jc);
+			Matrix3d Ic;
+			GetJc(Jc,Ic);
+			bodyvec[id] = new RigidBody(mass, Ic);
+			bodyvec[id]->setID(id);
+		}
+		else if (btype=="Flexible")
+		{
+			string flexfile = body["ConfigFile"].asString();
+			GetFlexibleBody(flexfile, bodyvec[id]);
+			bodyvec[id]->setID(id);
+		}
+		else
+		{
+			throw MBException("No such type body:" + btype);
+		}
+	}
+	//create Joint
+	unsigned int nj = root["Joint"].size();
+	for (unsigned int i = 0; i < nj; ++i)
+	{
+		Json::Value& joint = root["Joint"][i];
+		string jtype = joint["Type"].asString();
+		int Bi_id = joint["Bi_Id"].asInt();
+		int Bj_id = joint["Bj_Id"].asInt();
+		Vector3d rhoi, rhoj;
+		CheckId(Bi_id);
+		CheckId(Bj_id);
+		CheckRho(joint["Rhoi"]);
+		CheckRho(joint["Rhoj"]);
+		GetRho(joint["Rhoi"],rhoi);
+		GetRho(joint["Rhoj"],rhoj);
+		if (jtype == "Revolute")
+		{
+			pmbs->add(new Revolute(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+		}
+		else if (jtype == "Universe")
+		{
+			pmbs->add(new Universe(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+		}
+		else if (jtype == "Sphere")
+		{
+			pmbs->add(new Sphere(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+		}
+		else if (jtype == "Prism")
+		{
+			pmbs->add(new Prism(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+		}
+		else if (jtype == "Cylinder")
+		{
+			pmbs->add(new Cylinder(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+		}
+		else if (jtype == "Virtual")
+		{
+			pmbs->add(new Virtual(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj));
+		}
+		/*set CiP and CjQ*/
+	}
+	//set simulation time
+	Json::Value& Tspan = root["Tspan"];
+	double tb = Tspan["Start"].asDouble();
+	double te = Tspan["End"].asDouble();
+	int N = Tspan["Nstep"].asInt();
+	if (N <= 0)
+		throw MBException("Simulation step number cannot be non-positive!");
+
+	return true;
+}
