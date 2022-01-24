@@ -37,6 +37,7 @@ private:
 private:
 	bool calytoq(double t,double* y);                   //calculate from y to q.
 	bool caldytodq(double t,double* dy);                //calculate from dy to dq.
+	bool update(double t, double* y, double* dy);               //update q dq Tij Ui betai
 public:
 	friend class MBSystem;
 	TreeSystem(vector<JointBase*>& jvec);
@@ -45,7 +46,7 @@ public:
 	bool calM(double t, double* y, OUT MatrixXd& M);
 	bool calg(double t, double* y, double* dy, OUT MatrixXd& g);
 	bool calf(double t, double* y, double* dy, OUT VectorXd& f);
-	bool update(double t, double* y, double* dy);               //update q dq Tij Ui betai
+	
 	VectorXd rootacc(double t);
 	unsigned int DOF()const;
 	unsigned int NC()const;
@@ -59,7 +60,7 @@ class MBSystem
 {
 private:
 	unsigned int dof = 0;                      //degree of freedom
-	unsigned int nc = 0;                       //number of generalized coordinates.
+	unsigned int nc = 0;                       //number of independent generalized coordinates.
 	TreeSystem* mbtree = nullptr;
 	Equation* peq = nullptr;
 	Solver* psolver = nullptr;
@@ -82,7 +83,7 @@ private:
 	MatrixXd& calM(double t,double* y);
 	VectorXd& calf(double t, double* y, double* dy);
 	bool update(double t, double* y,double* dy);       //update G g M f G0
-	bool initialize();
+	bool initialize();                                //call before calculation
 protected:
 	MatrixXd& calZ(double t, double* y);
 	VectorXd& calz(double t, double* y, double* dy);

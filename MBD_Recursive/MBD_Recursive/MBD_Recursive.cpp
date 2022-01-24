@@ -15,9 +15,12 @@ int main()
         0.808, 0.5335, -0.25,
         -0.3995, 0.808, 0.433;
     double* q = new double[4];
+    double* p = q;
     AUX::AtoCA(A, q);
     for (int i = 0; i < 4; ++i)
         cout << q[i] << endl;
+    if (p == q)
+        cout << "true" << endl;
     delete[]q;
     return 0;
 }

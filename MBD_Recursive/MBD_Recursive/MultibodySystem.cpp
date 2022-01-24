@@ -9,6 +9,7 @@
 * else then calculate y->q and update yprev and qprev
 * and assign the coordinates for the bodies in the system
 */
+/*check once*/
 bool TreeSystem::calytoq(double t, double* y)
 {
 	double* yi = y;
@@ -19,7 +20,7 @@ bool TreeSystem::calytoq(double t, double* y)
 	}
 	return true;
 }
-
+/*check once*/
 bool TreeSystem::caldytodq(double t, double* dy)
 {
 	double* dyi = dy;
@@ -109,7 +110,7 @@ TreeSystem::TreeSystem(vector<JointBase*>& jvec)
 		dyi += ydimvec[i];
 	}
 }
-
+/*check once*/
 bool TreeSystem::calG0(double t, double* y, OUT MatrixXd& G0)
 {
 	int I, J;
@@ -125,8 +126,6 @@ bool TreeSystem::calG0(double t, double* y, OUT MatrixXd& G0)
 		rdim = qdimvec[I] - (Body::NC - 6);
 		if (pbj->id == 0)
 		{
-			//G_10=T_10*G_00
-			//G0.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->calTij(t, y + ydimcum[I]);
 			G0.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->Tij;
 		}
 		else
@@ -135,15 +134,13 @@ bool TreeSystem::calG0(double t, double* y, OUT MatrixXd& G0)
 			int Jrow = qdimcum[J] - (Body::NC - 6)*J;
 			int Jrdim = qdimvec[J] - (Body::NC - 6);
 			//G_i0=T_ij*G_j0
-			/*G0.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->calTij(t, y + ydimcum[I]) *
-				G0.block(Jrow, bcol, Jrdim, cdim);*/
 			G0.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->Tij *
 				G0.block(Jrow, bcol, Jrdim, cdim);
 		}
 	}
 	return true;
 }
-
+/*check once*/
 bool TreeSystem::calG(double t, double* y, OUT MatrixXd& G)
 {
 	Body* pbi = nullptr;
@@ -167,7 +164,6 @@ bool TreeSystem::calG(double t, double* y, OUT MatrixXd& G)
 				cdim = ydimvec[id];
 				//G_ii=U_i
 				G.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->Ui;
-				//G.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->calUi(t, y + ydimcum[id]);
 			}
 			else
 			{
@@ -181,18 +177,16 @@ bool TreeSystem::calG(double t, double* y, OUT MatrixXd& G)
 				int Jrow = qdimcum[J] - (Body::NC - 6) * J;
 				int Jrdim = qdimvec[J] - (Body::NC - 6);
 				//G_ik=T_ij*G_jk
-				/*G.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->calTij(t, y + ydimcum[I]) *
-					G.block(Jrow, bcol, Jrdim, cdim);*/
 				G.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->Tij *
 					G.block(Jrow, bcol, Jrdim, cdim);
+				id = pbj->id - 1;
 			}
-			id = pbj->id - 1;
 			pbj = bjvec[id]->jptr->Bj;
 		}
 	}
 	return true;
 }
-
+/*check once*/
 bool TreeSystem::calM(double t, double* y, OUT MatrixXd& M)
 {
 	for (unsigned int i = 0; i < nb; ++i)
@@ -201,7 +195,7 @@ bool TreeSystem::calM(double t, double* y, OUT MatrixXd& M)
 	}
 	return true;
 }
-
+/*check once*/
 bool TreeSystem::calg(double t, double* y, double* dy, OUT MatrixXd& g)
 {
 	Body* pbi = nullptr;
@@ -224,7 +218,6 @@ bool TreeSystem::calg(double t, double* y, double* dy, OUT MatrixXd& g)
 				rdim = qdimvec[id] - (Body::NC - 6);
 				cdim = 1;
 				//g_ii=betai
-				//g.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->calbetai(t, y + ydimcum[id],dy+ydimcum[id]);
 				g.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->betai;
 			}
 			else
@@ -241,16 +234,14 @@ bool TreeSystem::calg(double t, double* y, double* dy, OUT MatrixXd& g)
 				//g_ik=T_ij*g_jk
 				g.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->Tij *
 					g.block(Jrow, bcol, Jrdim, cdim);
-				/*g.block(brow, bcol, rdim, cdim) = bjvec[i]->jptr->calTij(t, y + ydimcum[I]) *
-					g.block(Jrow, bcol, Jrdim, cdim);*/
+				id = pbj->id - 1;
 			}
-			id = pbj->id - 1;
 			pbj = bjvec[id]->jptr->Bj;
 		}
 	}
 	return true;
 }
-
+/*check once*/
 bool TreeSystem::calf(double t, double* y, double* dy, OUT VectorXd& f)
 {
 	for (unsigned int i = 0; i < nb; ++i)
@@ -259,55 +250,57 @@ bool TreeSystem::calf(double t, double* y, double* dy, OUT VectorXd& f)
 	}
 	return true;
 }
-
+/*check once*/
 bool TreeSystem::update(double t, double* y, double* dy)
 {
 	//update q dq Tij Ui betai
 	if (AUX::isEqual(yprev.data(), y, yprev.rows()) && AUX::isEqual(dyprev.data(), dy, dyprev.rows()))
 		return false;                        //already updated!
+	double* yi = y, * dyi = dy;
 	if (!AUX::isEqual(yprev.data(), y, yprev.rows()))
 	{
 		for (int i = 0; i < yprev.rows(); ++i)
-		{
+		{//update yprev
 			yprev[i] = y[i];
 		}
 		calytoq(t, y);
 		static_cast<BaseBody*>(bjroot->bptr)->update(t);
 		for (unsigned int i = 0; i < nb; ++i)
 		{
-			bjvec[i]->jptr->calTij(t, y + ydimcum[i]);
-			bjvec[i]->jptr->calUi(t, y + ydimcum[i]);
+			bjvec[i]->jptr->calTij(t, yi);
+			bjvec[i]->jptr->calUi(t, yi);
+			yi += ydimvec[i];
 		}
 	}
 	if (!AUX::isEqual(dyprev.data(), dy, dyprev.rows()))
 	{
 		for (int i = 0; i < dyprev.rows(); ++i)
-		{
+		{// update dyprev
 			dyprev[i] = dy[i];
 		}
 		/*when update dq, Tij and Ui have already been calculated.*/
 		caldytodq(t, dy);
-		double* yi = y;
-		double* dyi = dy;
+		yi = y;
 		for (unsigned int i = 0; i < nb; ++i)
 		{
 			bjvec[i]->jptr->calbetai(t, yi, dyi);
 			yi += ydimvec[i];
+			dyi += ydimvec[i];
 		}
 	}
 	return true;
 }
-
+/*check once*/
 VectorXd TreeSystem::rootacc(double t)
 {
 	return static_cast<BaseBody*>(bjroot->bptr)->acceleration(t);
 }
-
+/*check once*/
 unsigned int TreeSystem::DOF() const
 {
 	return ydimcum[nb - 1] + ydimvec[nb - 1];
 }
-
+/*check once*/
 unsigned int TreeSystem::NC() const
 {
 	return qdimcum[nb - 1] + qdimvec[nb - 1] - nb * (Body::NC - 6);
@@ -317,41 +310,37 @@ TreeSystem::~TreeSystem()
 {
 
 }
-
+/*check once*/
 bool TreeSystem::BJpair::operator==(BJpair& other)
 {
 	return (bptr == other.bptr) && (jptr == other.jptr);
 }
-
+/*check once*/
 bool TreeSystem::BJpair::operator<(BJpair& other)
 {
 	return (*bptr) < (*other.bptr);
 }
-
+/*check once*/
 bool TreeSystem::BJpair::operator>(BJpair& other)
 {
 	return (*bptr) > (*other.bptr);
 }
-
+/*check once*/
 MBSystem::MBSystem()
 {
-	if (peq != nullptr)
-		delete peq;
-	peq = new Equation(this);
-	if (psolver != nullptr)
-		delete psolver;
-	psolver = new Solver(peq);
-}
 
+}
+/*check once*/
 MBSystem::~MBSystem()
 {
 	if (!mbtree)
 		delete mbtree;
 	if (!psolver)
 		delete psolver;
-
+	if (!peq)
+		delete peq;
 }
-
+/*check once*/
 bool MBSystem::add(JointBase* j)
 {
 	if (std::find(jointvec.begin(), jointvec.end(), j) == jointvec.end())
@@ -362,7 +351,7 @@ bool MBSystem::add(JointBase* j)
 	else
 		return false;
 }
-
+/*check once*/
 bool MBSystem::del(JointBase* j)
 {
 	auto it = std::find(jointvec.begin(), jointvec.end(), j);
@@ -371,32 +360,38 @@ bool MBSystem::del(JointBase* j)
 	jointvec.erase(it);
 	return true;
 }
-
+/*check once*/
 unsigned int MBSystem::DOF() const
 {
 	return dof;
 }
-
+/*check once*/
 bool MBSystem::sety0(const VectorXd& _y0)
 {
 	y0 = _y0;
 	return true;
 }
-
+/*check once*/
 bool MBSystem::setTimeInterval(double ti, double te, int N)
 {
 	return psolver->setTimeInterval(ti, te, N);
 }
-
+/*check once*/
 bool MBSystem::setTolerance(double r, double a)
 {
 	return psolver->setTolerance(r, a);
 }
-
+/*check once*/
 bool MBSystem::calculate()
 {
 	if (!initialize())
 		return false;
+	if (peq != nullptr)
+		delete peq;
+	peq = new Equation(this);
+	if (psolver != nullptr)
+		delete psolver;
+	psolver = new Solver(peq);
 	if (!psolver->calculate())
 		return false;
 	return true;
@@ -456,7 +451,7 @@ bool MBSystem::SaveAs(string fname, bool isbinary)
 	fout.close();
 	return true;
 }
-
+/*check once*/
 Solver::Solver(Equation* p)
 {
 	pe = p;
@@ -471,7 +466,7 @@ Solver::~Solver()
 {
 
 }
-
+/*check once*/
 bool Solver::setTimeInterval(double ti, double te, int N)
 {
 	t_ini = ti;
@@ -479,7 +474,7 @@ bool Solver::setTimeInterval(double ti, double te, int N)
 	Nstep = N;
 	return true;
 }
-
+/*check once*/
 bool Solver::setTolerance(double r, double a)
 {
 	Rtol = r;
@@ -492,8 +487,9 @@ bool Solver::calculate()
 	double dt = (t_end - t_ini) / Nstep;
 	VectorXd y0 = pe->initialvalue();
 	VectorXd y = y0, dy;
-	dy.resize(pe->DOF(), 0);
+	dy.resize(pe->DOF());
 	dy.head(pe->DOF() / 2) = y.tail(pe->DOF() / 2);
+	dy.tail(pe->DOF() / 2).setZero();
 	double t = t_ini;
 	while (t<t_end)
 	{
@@ -507,10 +503,9 @@ bool Solver::calculate()
 	}
 	return true;
 }
-
+/*check once*/
 Equation::Equation(MBSystem* p)
 {
-
 	pmbs = p;
 	L.setZero(2 * pmbs->dof, 2 * pmbs->dof);
 	R.setZero(2 * pmbs->dof);
@@ -521,7 +516,7 @@ Equation::~Equation()
 {
 
 }
-
+/*check once*/
 MatrixXd& Equation::Left(double t, VectorXd& y)
 {
 	// update first
@@ -530,7 +525,7 @@ MatrixXd& Equation::Left(double t, VectorXd& y)
 	L.block(n, n, n, n) = pmbs->calZ(t, y.data());
 	return L;
 }
-
+/*check once*/
 VectorXd& Equation::Right(double t, VectorXd& y)
 {
 	// update first
@@ -540,12 +535,12 @@ VectorXd& Equation::Right(double t, VectorXd& y)
 	R.segment(n, n) = pmbs->calz(t, y.data(), y.data() + n) + pmbs->calfey(t, y.data(), y.data() + n);
 	return R;
 }
-
+/*check once*/
 VectorXd Equation::initialvalue() const
 {
 	return pmbs->y0;
 }
-
+/*check once*/
 unsigned int Equation::DOF() const
 {
 	return pmbs->dof * 2;
@@ -585,7 +580,7 @@ VectorXd& MBSystem::calf(double t, double* y, double* dy)
 	mbtree->calf(t, y, dy, f);
 	return f;
 }
-
+/*check once*/
 bool MBSystem::update(double t, double* y, double* dy)
 {
 	/*call mbtree to update first*/
@@ -602,7 +597,7 @@ bool MBSystem::update(double t, double* y, double* dy)
 	return true;
 }
 
-
+/*check once*/
 bool MBSystem::initialize()
 {
 	/*initialize for calculation*/
@@ -633,21 +628,21 @@ bool MBSystem::initialize()
 	f.setZero();
 	return true;
 }
-
+/*check once*/
 MatrixXd& MBSystem::calZ(double t, double* y)
 {
 	// calculate generalized Mass matrix Z
 	Z = G.transpose() * M * G;
 	return Z;
 }
-
+/*check once*/
 VectorXd& MBSystem::calz(double t, double* y, double* dy)
 {
 	// TODO: insert return statement here
 	z = G.transpose() * (f - M * g.rowwise().sum() - M * G0 * mbtree->rootacc(t));
 	return z;
 }
-
+/*check once*/
 VectorXd& MBSystem::calfey(double t, double* y, double* dy)
 {
 	// TODO: insert return statement here

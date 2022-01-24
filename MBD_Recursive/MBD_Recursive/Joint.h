@@ -19,7 +19,7 @@ protected:
 	Matrix3d BjQ;                          //transform from Q0 to Q.
 	Matrix3d CjQ;                          //transform from Q to h0.  Constant
 	Matrix3d Dih;                          //transform from h0 to h.
-	MatrixXd Ui;
+	MatrixXd Ui;                           //need derived class to resize it.
 	VectorXd betai;          
 	MatrixXd Tij;
 protected:
@@ -51,8 +51,9 @@ public:
 	JointBase(Body* Bi_ptr, Body* Bj_ptr, const Vector3d& rho_i, const Vector3d& rho_j);
 	virtual ~JointBase();
 	/*need derived class to complete it.*/
-	inline virtual unsigned int DOF()const;
+	inline virtual unsigned int DOF()const = 0;
 	inline virtual unsigned int type()const = 0;
+	/*some common function for the Joint class */
 	virtual MatrixXd& calUi(IN double t, IN double* y);
 	virtual VectorXd& calbetai(IN double t, IN double* y, IN double* dy);
 	virtual MatrixXd& calTij(IN double t,IN double* y);
@@ -106,7 +107,6 @@ public:
 	~Virtual();
 	inline unsigned int DOF()const;
 	inline unsigned int type()const;
-
 };
 
 class Sphere :public JointBase
