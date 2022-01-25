@@ -3,36 +3,29 @@
 // 
 
 #include <iostream>
-#include <Dense>
-#include "Body.h"
-#include "auxiliary.h"
+#include "MultibodySystem.h"
 #include <ctime>
 using namespace std;
 using namespace Eigen;
 int main()
 {
-	MatrixXd m(1000, 1000);
-	MatrixXd n(1000, 1000);
-	for (int i = 0; i < 1000; ++i)
-		for (int j = 0; j < 1000; ++j)
-		{
-			m(i, j) = (i + j) % 2;
-			n(i, j) = (i + j) % 2;
-		}
-	int N = 10;
-	clock_t s;
-	s = clock();
-	for (int i = 0; i < N; ++i)
-		m += n;
-	cout << clock() - s << endl;
-	s = clock();
-	for (int i = 0; i < N; ++i)
-		m += n;
-	cout << clock() - s << endl;
-	s = clock();
-	for (int i = 0; i < N; ++i)
-		m.noalias() += n;
-	cout << clock() - s << endl;
+    MBFileParser mbparser;
+	try
+	{
+		mbparser.Read("pendulum.json");
+		mbparser.Simulate();
+		mbparser.SaveDataAs("pendulumdata", false);
+		mbparser.Write("pendulum.json");
+	}
+	catch (const MBException& mbexp)
+	{
+		cout << mbexp.what() << endl;
+	}
+	catch (const std::exception& stdexp)
+	{
+		cout << stdexp.what() << endl;
+	}
+
     return 0;
 }
 

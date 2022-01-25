@@ -72,10 +72,10 @@ TreeSystem::TreeSystem(vector<JointBase*>& jvec)
 	bjroot = *bjvec.begin();
 	bjvec.erase(bjvec.begin());
 	nb = bjvec.size();
-	qdimvec = VectorXi(nb, 0);
-	ydimvec = VectorXi(nb, 0);
-	qdimcum = VectorXi(nb, 0);
-	ydimcum = VectorXi(nb, 0);
+	qdimvec = VectorXi::Zero(nb);
+	ydimvec = VectorXi::Zero(nb);
+	qdimcum = VectorXi::Zero(nb);
+	ydimcum = VectorXi::Zero(nb);
 	unsigned int delta = 0;
 	for (unsigned int i = 0; i < nb; ++i)
 	{
@@ -303,7 +303,7 @@ unsigned int TreeSystem::DOF() const
 /*check once*/
 unsigned int TreeSystem::NC() const
 {
-	return qdimcum[nb - 1] + qdimvec[nb - 1] - nb * (Body::NC - 6);
+	return qdimcum[nb - 1] + qdimvec[nb - 1];
 }
 
 TreeSystem::~TreeSystem()
@@ -393,12 +393,6 @@ bool MBSystem::calculate()
 {
 	if (!initialize())
 		return false;
-	if (peq != nullptr)
-		delete peq;
-	peq = new Equation(this);
-	if (psolver != nullptr)
-		delete psolver;
-	psolver = new Solver(peq);
 	if (!psolver->calculate())
 		return false;
 	return true;
@@ -548,7 +542,7 @@ VectorXd& Equation::Right(double t, VectorXd& y)
 /*check once*/
 VectorXd Equation::initialvalue() const
 {
-	VectorXd ini;
+	VectorXd ini(pmbs->dof * 2);
 	ini << pmbs->y0, pmbs->dy0;
 	return ini;
 }
@@ -660,7 +654,7 @@ MatrixXd& MBSystem::calZ(double t, double* y)
 VectorXd& MBSystem::calz(double t, double* y, double* dy)
 {
 	// TODO: insert return statement here
-	z = G.transpose() * (f - M * g.rowwise().sum() - M * G0 * mbtree->rootacc(t));
+	z = G.transpose() * (f - M * (g.rowwise().sum() + G0 * mbtree->rootacc(t)));
 	return z;
 }
 /*check once*/
@@ -737,6 +731,9 @@ void MBFileParser::GetJc(const Json::Value& Jc,Matrix3d& Ic)
 	for (unsigned int j = 3; j < 5; ++j)
 		Ic(1, j - 2) = Jc[j].asDouble();
 	Ic(2, 2) = Jc[(unsigned int)5].asDouble();
+	for (unsigned int i = 1; i < 3; ++i)
+		for (unsigned int j = 0; j < i; ++j)
+			Ic(i, j) = Ic(j, i);
 	return;
 }
 
@@ -816,14 +813,14 @@ void MBFileParser::GetPos(const Json::Value& val, VectorXd& p)
 void MBFileParser::GetVel(const Json::Value& val, VectorXd& v)
 {
 	v.resize(val.size());
-	for (unsigned int i = 0; i < v.rows(); ++i)
+	for (int i = 0; i < v.rows(); ++i)
 		v(i) = val[i].asDouble();
 	return;
 }
 
 MBFileParser::~MBFileParser()
 {
-	if (pmbs)
+	if (pmbs!=nullptr && freememo)
 	{
 		for (auto& item : pmbs->jointvec)
 			delete item;
@@ -927,13 +924,13 @@ bool MBFileParser::Read(const string& fname)
 		}
 		else
 		{
-			throw MBException("There is such type joint:" + jtype);
+			throw MBException("There is no such type joint:" + jtype);
 		}
 		/*initial position and velocity*/
 		CheckPos(joint["Position"], pj->DOF() + bodyvec[Bi_id]->nMode());
 		CheckVel(joint["Velocity"], pj->DOF() + bodyvec[Bi_id]->nMode());
-		GetPos(joint["Position"], posvec[Bi_id]);
-		GetVel(joint["Velocity"], velvec[Bi_id]);
+		GetPos(joint["Position"], posvec[Bi_id - 1]);
+		GetVel(joint["Velocity"], velvec[Bi_id - 1]);
 		/*set CiP and CjQ*/
 		CheckMat3d(joint["CiP"]);
 		CheckMat3d(joint["CjQ"]);
@@ -962,23 +959,70 @@ bool MBFileParser::Read(const string& fname)
 	//Create Force
 
 	//set simulation time
-	Json::Value& Tspan = root["Tspan"];
+	Json::Value& simset = root["Simulation"];
+	Json::Value& Tspan = simset["Tspan"];
 	double tb = Tspan["Start"].asDouble();
 	double te = Tspan["End"].asDouble();
 	int N = Tspan["Nstep"].asInt();
 	if (N <= 0)
 		throw MBException("Simulation step number cannot be non-positive!");
-	//set simulation configuration
-	if (root.isMember("Tolerance"))
+	else
+		pmbs->setTimeInterval(tb, te, N);
+	if (simset.isMember("Tolerance"))
 	{
-		if (root["Tolerance"].isMember("Absolute") && root["Tolerance"].isMember("Relative"))
-			pmbs->setTolerance(root["Tolerance"]["Relative"].asDouble(), root["Tolerance"]["Absolute"].asDouble());
+		if (simset["Tolerance"].isMember("Absolute") && simset["Tolerance"].isMember("Relative"))
+			pmbs->setTolerance(simset["Tolerance"]["Relative"].asDouble(), simset["Tolerance"]["Absolute"].asDouble());
 	}
+	freememo = true;
 	return true;
 }
 
 bool MBFileParser::Write(const string& fname)
 {
+	if (!pmbs)
+		return false;
+	Json::Value root;
+	//write bodies
+	auto& jvec = pmbs->jointvec;
+	for (unsigned int i = 0; i < jvec.size(); ++i)
+	{
+		Json::Value body;
+		jvec[i]->Bi->Write(body);
+		root["Body"].append(body);
+		if (jvec[i]->Bj->type() == Body::BASE)
+		{
+			Json::Value bd;
+			jvec[i]->Bj->Write(bd);
+			root["Body"].append(bd);
+		}
+	}
+	//write joints
+	for (unsigned int i = 0; i < jvec.size(); ++i)
+	{
+		Json::Value joint;
+		jvec[i]->Write(joint);
+		root["Joint"].append(joint);
+	}
+	//write force
+	
+	//simulation setting
+	Json::Value Tspan;
+	Tspan["Start"] = Json::Value(pmbs->psolver->t_ini);
+	Tspan["End"] = Json::Value(pmbs->psolver->t_end);
+	Tspan["Nstep"] = Json::Value(pmbs->psolver->Nstep);
+	root["Simulation"]["Tspan"] = Tspan;
+	Json::Value Tol;
+	Tol["Absolute"] = Json::Value(pmbs->psolver->Atol);
+	Tol["Relative"] = Json::Value(pmbs->psolver->Rtol);
+	root["Simulation"]["Tolerance"] = Tol;
+	//write to file
+	Json::StyledWriter sw;
+	ofstream fout;
+	fout.open(fname, ios::out);
+	if (!fout)
+		throw MBException("Open output json file error!");
+	fout << sw.write(root);
+	fout.close();
 	return true;
 }
 

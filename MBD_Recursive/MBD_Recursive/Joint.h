@@ -48,6 +48,7 @@ public:
 		VIRTUAL=0x5,
 	};
 	friend class TreeSystem;
+	friend class MBFileParser;
 	JointBase(Body* Bi_ptr, Body* Bj_ptr, const Vector3d& rho_i, const Vector3d& rho_j);
 	virtual ~JointBase();
 	/*need derived class to complete it.*/
@@ -61,6 +62,8 @@ public:
 	virtual bool caldytodq(IN double t, IN double* dy);                         //calculate from dy to dq
 	virtual bool setCiP(const Matrix3d& c);                 //CiP CjQ is transformation matrix from
 	virtual bool setCjQ(const Matrix3d& c);                 //element cords to joint cords
+	/*function to write some joint config*/
+	virtual bool Write(Json::Value& joint)const;
 };
 
 /*the rotation axis is along x-axis by default.*/

@@ -14,6 +14,9 @@
 #define OUT
 #endif // !OUT
 
+
+constexpr double PI=3.1415926535898;
+
 #define INI_FAILURE(str) string(str)+string(" Initialization Failure")
 
 

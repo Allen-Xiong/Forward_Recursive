@@ -39,6 +39,7 @@ public:
 	virtual Vector3d translationalVel(Vector3d& _rp, int EID)const; //the translational velocity of element P on the body.
 	virtual VectorXd inertiaForce();                                //the inertia force of the body.
 	virtual ~Body();
+	virtual bool Write(Json::Value& body)const;
 protected:
 	virtual Vector3d uiP(int EID)const;                             //the relative velocity of the element P about floating coordinate system.
 public:
@@ -55,10 +56,11 @@ public:
 	BaseBody();
 	BaseBody(VectorXd(*p)(double), VectorXd(*v)(double), VectorXd(*a)(double));
 	~BaseBody();
+	virtual bool Write(Json::Value& body)const;
 	unsigned int type()const;
 	bool calMass(MatrixXd& M, int k);
 	unsigned int nMode()const;
-	VectorXd acceleration(double t);
+	VectorXd acceleration(double t);                     /*remain completed.*/
 	bool update(double t);
 };
 
@@ -83,6 +85,7 @@ public:
 	virtual unsigned int nMode()const;
 	virtual VectorXd inertiaForce();
 	virtual ~RigidBody();
+	virtual bool Write(Json::Value& body)const;
 };
 
 class FlexibleBody :public RigidBody
@@ -131,9 +134,6 @@ private:
 	bool calG5();
 public:
 	friend class JointBase;
-	friend class Revolute;
-	friend class Universe;
-	friend class Virtual;
 	FlexibleBody(int NE, int nmode);
 	bool setMe(VectorXd& Me);
 	bool setRho(MatrixXd& Rho);
@@ -149,4 +149,5 @@ public:
 	virtual Vector3d translationalVel(Vector3d& _rp, int EID)const;
 	virtual VectorXd inertiaForce();
 	virtual ~FlexibleBody();
+	virtual bool Write(Json::Value& body)const;
 };

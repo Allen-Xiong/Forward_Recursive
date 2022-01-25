@@ -316,6 +316,8 @@ bool JointBase::calytoq(IN double t, IN double* y)
 			Bi->pos[nc + i] = yi[del + i];
 		}
 	}
+	for (unsigned int i = 0; i < Body::NC; ++i)
+		cout << Bi->pos[i] << endl;
 	return true;
 }
 /*check once*/
@@ -393,6 +395,44 @@ bool JointBase::setCiP(const Matrix3d& c)
 bool JointBase::setCjQ(const Matrix3d& c)
 {
 	CjQ = c;
+	return true;
+}
+bool JointBase::Write(Json::Value& joint) const
+{
+	if (type() == JointBase::REVOLUTIONAL)
+		joint["Type"] = Json::Value("Revolute");
+	else if (type() == JointBase::UNIVERSAL)
+		joint["Type"] = Json::Value("Universe");
+	else if (type() == JointBase::SPHERICAL)
+		joint["Type"] = Json::Value("Sphere");
+	else if (type() == JointBase::PRISMATIC)
+		joint["Type"] = Json::Value("Prism");
+	else if (type() == JointBase::CYLINDRICAL)
+		joint["Type"] = Json::Value("Cylinder");
+	else if (type() == JointBase::VIRTUAL)
+		joint["Type"] = Json::Value("Virtual");
+	else
+		throw MBException("There is no such type joint.");
+	joint["Bi_Id"] = Json::Value(Bi->id);
+	joint["Bj_Id"] = Json::Value(Bj->id);
+	for (int i = 0; i < 3; ++i)
+	{
+		joint["Rhoi"].append(rhoi(i));
+		joint["Rhoj"].append(rhoj(i));
+	}
+	for (unsigned int i = 0; i < DOF() + Bi->nMode(); ++i)
+	{
+		joint["Position"].append(yi[i]);
+		joint["Velocity"].append(dyi[i]);
+	}
+	for (int i = 0; i < 3; ++i)
+	{
+		for (int j = 0; j < 3; ++j)
+		{
+			joint["CiP"].append(CiP(i, j));
+			joint["CjQ"].append(CjQ(i, j));
+		}
+	}
 	return true;
 }
 /*check once*/

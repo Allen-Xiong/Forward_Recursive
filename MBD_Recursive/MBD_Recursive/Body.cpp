@@ -73,18 +73,15 @@ Vector3d Body::angularVel() const
 	}
 	else if (m_s_rtype == RCORDS::CARDANANGLE)
 	{
-		w(0) = vel[3];
-		w(1) = vel[4];
-		w(2) = vel[5];
+		MatR3CX Kr(3, 3);
+		AUX::Kr(pos + 3, RCORDS::CARDANANGLE, Kr);
+		Map<Vector3d> dq(vel + 3);
+		w = Kr * dq;
 	}
 	else if (m_s_rtype == RCORDS::EULERANGLE)
 	{
-		Matrix3d Kr = Matrix3d::Zero();
-		Kr(0, 1) = cos(pos[5]);
-		Kr(0, 2) = sin(pos[4]) * sin(pos[3]);
-		Kr(1, 1) = sin(pos[5]);
-		Kr(1, 2) = -sin(pos[4]) * cos(pos[3]);
-		Kr(2, 0) = 1;
+		MatR3CX Kr(3, 3);
+		AUX::Kr(pos + 3, RCORDS::EULERANGLE, Kr);
 		Map<Vector3d> dq(vel + 3);
 		w = Kr * dq;
 	}
@@ -123,6 +120,12 @@ VectorXd Body::inertiaForce()
 Body::~Body()
 {
 }
+
+bool Body::Write(Json::Value& body) const
+{
+	body["Id"] = Json::Value(id);
+	return true;
+}
 /*check once*/
 Vector3d Body::uiP(int EID) const
 {
@@ -157,12 +160,16 @@ RigidBody::RigidBody()
 RigidBody::RigidBody(double m):Body(m)
 {
 	M11 = Matrix3d::Identity() * m;
+	M12.setZero();
+	InerF = VectorXd::Zero(6);
 }
 
 RigidBody::RigidBody(double m, Matrix3d& I):Body(m)
 {
 	M11 = Matrix3d::Identity() * m;
+	M12.setZero();
 	Jc = I;
+	InerF = VectorXd::Zero(6);
 }
 
 
@@ -197,6 +204,17 @@ VectorXd RigidBody::inertiaForce()
 RigidBody::~RigidBody()
 {
 
+}
+
+bool RigidBody::Write(Json::Value& body) const
+{
+	Body::Write(body);
+	body["Type"] = Json::Value("Rigid");
+	body["Mass"] = Json::Value(tM);
+	for (int i = 0; i < 3; ++i)
+		for (int j = i; j < 3; ++j)
+			body["Jc"].append(Jc(i, j));
+	return true;
 }
 
 Matrix3d& FlexibleBody::calM11()
@@ -321,10 +339,7 @@ FlexibleBody::FlexibleBody(int NE, int nmode)
 	g4.resize(s, vector<Vector3d>(s, Vector3d(0,0,0)));
 	g5.resize(3, s);
 	G2.resize(s, Matrix3d::Zero());
-	//G3.resize(s, vector<Matrix3d>(s, Matrix3d::Zero()));
-	G3.resize(s);
-	for (int i = 0; i < s; ++i)
-		G3[i].resize(s);
+	G3.resize(s, vector<Matrix3d>(s, Matrix3d::Zero()));
 	G4.resize(s, Matrix3d::Zero());
 	G5.resize(s, Matrix3d::Zero());
 	InerF.resize(6 + s);
@@ -594,6 +609,44 @@ FlexibleBody::~FlexibleBody()
 {
 
 }
+bool FlexibleBody::Write(Json::Value& body) const
+{
+	Body::Write(body);
+	body["Type"] = Json::Value("Flexible");
+	string fname = "flex_" + to_string(id) + string(".txt");
+	body["ConfigFile"] = Json::Value(fname);
+	fstream fout(fname, ios::out);
+	if (!fout)
+		throw MBException("Open Modal Data File Error!");
+	fout << ne << endl;
+	fout << s << endl;
+	for (unsigned int i = 0; i < ne; ++i)
+		fout << me(i) << endl;
+	for (unsigned int i = 0; i < ne; ++i)
+		fout << rho(0, i) << '\t' << rho(1, i) << '\t' << rho(2, i) << endl;
+	for (unsigned int k = 0; k < ne; ++k)
+	{
+		for (unsigned int i = 0; i < s; ++i)
+		{
+			fout << PHI[k](0, i) << '\t' << PHI[k](1, i) << '\t' << PHI[k](2, i) << '\t';
+			fout << PSI[k](0, i) << '\t' << PSI[k](1, i) << '\t' << PSI[k](2, i) << endl;
+		}
+	}
+	for (unsigned int i = 0; i < s; ++i)
+	{
+		for (unsigned int j = 0; j < s; ++j)
+			fout << Ka(i, j) << '\t';
+		fout << endl;
+	}
+	for (unsigned int i = 0; i < s; ++i)
+	{
+		for (unsigned int j = 0; j < s; ++j)
+			fout << Ca(i, j) << '\t';
+		fout << endl;
+	}
+	fout.close();
+	return true;
+}
 /*check once*/
 BaseBody::BaseBody()
 {
@@ -608,6 +661,10 @@ BaseBody::BaseBody()
 		vel[i] = 0;
 		acc[i] = 0;
 	}
+	if (Body::m_s_rtype == RCORDS::EULERQUATERNION)
+		pos[3] = 1;
+	else if (Body::m_s_rtype == RCORDS::EULERANGLE)
+		pos[4] = PI;
 }
 
 BaseBody::BaseBody(VectorXd(*p)(double), VectorXd(*v)(double), VectorXd(*a)(double)):BaseBody()
@@ -623,6 +680,13 @@ BaseBody::~BaseBody()
 	delete[] pos;
 	delete[] vel;
 	delete[] acc;
+}
+
+bool BaseBody::Write(Json::Value& body) const
+{
+	Body::Write(body);
+	body["Type"] = Json::Value("Base");
+	return true;
 }
 
 unsigned int BaseBody::type() const
@@ -642,16 +706,17 @@ unsigned int BaseBody::nMode() const
 
 VectorXd BaseBody::acceleration(double t)
 {
-	VectorXd a;
+	VectorXd a(6+nMode());
 	if (Body::m_s_rtype==RCORDS::EULERQUATERNION)
 	{
 		Matrix<double, 3, 4> R;
 		AUX::R(pos + 3, R);
-		a.resize(7+nMode());
 		for (unsigned int i = 0; i < 3; ++i)
 			a(i) = acc[i];
 		Map<Vector4d> ddlam(acc + 3);
-		a.tail<3>() = 2 * R * ddlam;
+		a.segment(3,3) = 2 * R * ddlam;
+		for (unsigned int i = 0; i < nMode(); ++i)
+			a(6 + i) = acc[7 + i];
 	}
 	else if (Body::m_s_rtype == RCORDS::CARDANANGLE)
 	{

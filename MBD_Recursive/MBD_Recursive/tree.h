@@ -467,7 +467,7 @@ bool myTree<T>::getNodevec(vector<T*>& nvec)
 {
     nvec.reserve(nodenum);
     getNodevec(treeRoot, nvec);
-    sort(nvec.begin(), nvec.end());
+    sort(nvec.begin(), nvec.end(), [](T* p1, T* p2) {return (*p1) < (*p2); });
     return true;
 }
 #endif // TREE_H_INCLUDED

@@ -61,7 +61,7 @@ class MBSystem
 {
 private:
 	unsigned int dof = 0;                      //degree of freedom
-	unsigned int nc = 0;                       //number of independent generalized coordinates.
+	unsigned int nc = 0;                       //number of absolute coordinates.
 	TreeSystem* mbtree = nullptr;
 	Equation* peq = nullptr;
 	Solver* psolver = nullptr;
@@ -117,7 +117,7 @@ protected:
 public:
 	Equation(MBSystem* p);
 	~Equation();
-	MatrixXd& Left(double t, VectorXd& y);                    //y是状态空间变量
+	MatrixXd& Left(double t, VectorXd& y);                    //y is state space variable.
 	VectorXd& Right(double t, VectorXd& y);
 	VectorXd initialvalue()const;
 	unsigned int DOF()const;
@@ -134,12 +134,12 @@ private:
 	int Nstep;
 	double Rtol;
 	double Atol;
-private:
 	vector<double> tspan;
 	list<VectorXd> Y;
 	list<VectorXd> DY;
 public:
-	friend MBSystem;
+	friend class MBSystem;
+	friend class MBFileParser;
 	Solver(Equation* p);
 	~Solver();
 	bool setTimeInterval(double ti, double te, int N);
@@ -151,6 +151,7 @@ class MBFileParser
 {
 	MBSystem* pmbs = nullptr;
 	vector<Body*> bodyvec;
+	bool freememo = false;
 protected:
 	void clear();
 	void CheckId(int id);
@@ -169,8 +170,8 @@ protected:
 public:
 	MBFileParser() :pmbs(nullptr) {};
 	~MBFileParser();
-	bool Read(const string& fname);
-	bool Write(const string& fname);  /*remain completed.*/
+	bool Read(const string& fname);  
+	bool Write(const string& fname);  
 	bool Simulate();
 	bool SaveDataAs(const string& fname, bool isbinary);
 };
