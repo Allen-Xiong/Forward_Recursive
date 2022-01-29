@@ -9,13 +9,13 @@ using namespace std;
 using namespace Eigen;
 int main()
 {
+	clock_t start = clock();
     MBFileParser mbparser;
 	try
 	{
-		mbparser.Read("pendulum.json");
+		mbparser.Read("solarpaneldeploy.json");
 		mbparser.Simulate();
-		mbparser.SaveDataAs("pendulumdata", false);
-		mbparser.Write("pendulum.json");
+		mbparser.SaveDataAs("solarpaneldeploy", false);
 	}
 	catch (const MBException& mbexp)
 	{
@@ -25,7 +25,7 @@ int main()
 	{
 		cout << stdexp.what() << endl;
 	}
-
+	cout << "The computation costs " << (clock() - start) / CLOCKS_PER_SEC << " s." << endl;
     return 0;
 }
 

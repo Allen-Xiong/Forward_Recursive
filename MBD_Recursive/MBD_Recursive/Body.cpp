@@ -3,7 +3,27 @@
 RCORDS Body::m_s_rtype = RCORDS::EULERQUATERNION;
 unsigned int Body::NC = 7;
 
-Body::Body(double m) noexcept
+bool Body::setRcords(IN RCORDS rtype)
+{
+	m_s_rtype = rtype;
+	switch (rtype)
+	{
+	case RCORDS::EULERANGLE:
+		NC = 6;
+		break;
+	case RCORDS::EULERQUATERNION:
+		NC = 7;
+		break;
+	case RCORDS::CARDANANGLE:
+		NC = 6;
+		break;
+	default:
+		break;
+	}
+	return true;
+}
+
+Body::Body(IN double m) noexcept
 {
 	tM = m;
 	id = -1;             //  id not assigned
@@ -17,7 +37,7 @@ Body::Body() noexcept
 
 
 
-bool Body::operator==(Body& other)const
+bool Body::operator==(IN Body& other)const
 {
 	if (this->id == other.id)
 		return true;
@@ -25,7 +45,7 @@ bool Body::operator==(Body& other)const
 		return false;
 }
 
-bool Body::operator<(Body& other)const
+bool Body::operator<(IN Body& other)const
 {
 	if (this->id < other.id)
 		return true;
@@ -33,27 +53,27 @@ bool Body::operator<(Body& other)const
 		return false;
 }
 
-bool Body::operator<=(Body& other)const
+bool Body::operator<=(IN Body& other)const
 {
 	return (*this) < other || (*this) == other;
 }
 
-bool Body::operator>(Body& other)const
+bool Body::operator>(IN Body& other)const
 {
 	return !((*this) <= other);
 }
 
-bool Body::setID(int i)
+bool Body::setID(IN int i)
 {
 	id = i;
 	return true;
 }
 
 /*check once*/
-bool Body::A(Matrix3d& M) const
+bool Body::A(OUT Matrix3d& M) const
 {
 	if (m_s_rtype == RCORDS::EULERQUATERNION)
-		AUX::A(pos + 3, M);
+		AUX::EQtoA(pos + 3, M);
 	else if (m_s_rtype == RCORDS::EULERANGLE)
 		AUX::EAtoA(pos + 3, M);
 	else if (m_s_rtype == RCORDS::CARDANANGLE)
@@ -72,14 +92,14 @@ Vector3d Body::angularVel() const
 		w = 2 * r * lambda;
 	}
 	else if (m_s_rtype == RCORDS::CARDANANGLE)
-	{
+	{//Cardan Angle
 		MatR3CX Kr(3, 3);
 		AUX::Kr(pos + 3, RCORDS::CARDANANGLE, Kr);
 		Map<Vector3d> dq(vel + 3);
 		w = Kr * dq;
 	}
 	else if (m_s_rtype == RCORDS::EULERANGLE)
-	{
+	{//Euler Angle
 		MatR3CX Kr(3, 3);
 		AUX::Kr(pos + 3, RCORDS::EULERANGLE, Kr);
 		Map<Vector3d> dq(vel + 3);
@@ -88,26 +108,26 @@ Vector3d Body::angularVel() const
 	return w;
 }
 /*check once*/
-Vector3d Body::angularVel(int EID) const
+Vector3d Body::angularVel(IN int EID) const
 {
 	return angularVel();
 }
 /*check once*/
-Vector3d Body::rhoP(Vector3d& _rp, int EID) const
+Vector3d Body::rhoP(IN Vector3d& _rp,IN int EID) const
 {
 	Matrix3d T;
 	A(T);
 	return T * _rp;
 }
 /*check once*/
-Vector3d Body::translationalVel(Vector3d& _rp) const
+Vector3d Body::translationalVel(IN Vector3d& _rp) const
 {
 	Vector3d v(vel[0], vel[1], vel[2]);
 	v += angularVel().cross(Body::rhoP(_rp, -1));
 	return v;
 }
 /*check once*/
-Vector3d Body::translationalVel(Vector3d& _rp, int EID) const
+Vector3d Body::translationalVel(IN Vector3d& _rp,IN int EID) const
 {
 	return Body::translationalVel(_rp);
 }
@@ -121,13 +141,13 @@ Body::~Body()
 {
 }
 
-bool Body::Write(Json::Value& body) const
+bool Body::Write(OUT Json::Value& body) const
 {
 	body["Id"] = Json::Value(id);
 	return true;
 }
 /*check once*/
-Vector3d Body::uiP(int EID) const
+Vector3d Body::uiP(IN int EID) const
 {
 	return Vector3d(0,0,0);
 }
@@ -157,14 +177,14 @@ RigidBody::RigidBody()
 	InerF = VectorXd::Zero(6);
 }
 
-RigidBody::RigidBody(double m):Body(m)
+RigidBody::RigidBody(IN double m):Body(m)
 {
 	M11 = Matrix3d::Identity() * m;
 	M12.setZero();
 	InerF = VectorXd::Zero(6);
 }
 
-RigidBody::RigidBody(double m, Matrix3d& I):Body(m)
+RigidBody::RigidBody(IN double m,IN Matrix3d& I):Body(m)
 {
 	M11 = Matrix3d::Identity() * m;
 	M12.setZero();
@@ -180,7 +200,7 @@ unsigned int RigidBody::type() const
 	return Body::RIGID;
 }
 /*check once*/
-bool RigidBody::calMass(MatrixXd& M, int k)
+bool RigidBody::calMass(OUT MatrixXd& M,IN int k)
 {
 	M.block<3, 3>(k, k) = calM11();
 	M.block<3, 3>(k, k + 3) = calM12();
@@ -196,6 +216,7 @@ unsigned int RigidBody::nMode() const
 /*check once*/
 VectorXd RigidBody::inertiaForce()
 {
+	/*assume M22 is already calculated.*/
 	Vector3d w = angularVel();
 	InerF.segment<3>(3) = -w.cross(M22 * w);
 	return InerF;
@@ -206,7 +227,7 @@ RigidBody::~RigidBody()
 
 }
 
-bool RigidBody::Write(Json::Value& body) const
+bool RigidBody::Write(OUT Json::Value& body) const
 {
 	Body::Write(body);
 	body["Type"] = Json::Value("Rigid");
@@ -274,7 +295,7 @@ MatrixXd& FlexibleBody::calM33()
 	return M33;
 }
 /*check once*/
-Vector3d FlexibleBody::uiP(int EID) const
+Vector3d FlexibleBody::uiP(IN int EID) const
 {
 	if (EID < 0)
 		return Body::uiP(EID);
@@ -321,7 +342,7 @@ bool FlexibleBody::calG5()
 	return true;
 }
 /*check once*/
-FlexibleBody::FlexibleBody(int NE, int nmode)
+FlexibleBody::FlexibleBody(IN int NE, IN int nmode)
 {
 	s = nmode;
 	ne = NE;
@@ -345,7 +366,7 @@ FlexibleBody::FlexibleBody(int NE, int nmode)
 	InerF.resize(6 + s);
 }
 
-bool FlexibleBody::setMe(VectorXd& Me)
+bool FlexibleBody::setMe(IN VectorXd& Me)
 {
 	if (Me.rows() != ne)
 		throw MBException(INI_FAILURE("FlexibleBody::setMe"));
@@ -361,7 +382,7 @@ bool FlexibleBody::setMe(VectorXd& Me)
 * at the same time.
 */
 /*check once*/
-bool FlexibleBody::setRho(MatrixXd& Rho)
+bool FlexibleBody::setRho(IN MatR3CX& Rho)
 {
 	if (Rho.rows() != 3 || Rho.cols() != ne)
 	{
@@ -387,7 +408,7 @@ bool FlexibleBody::setRho(MatrixXd& Rho)
 * Gama2, Gama3 can be calculated.
 */
 /*check once*/
-bool FlexibleBody::setPHI(vector<MatrixXd>& phi)
+bool FlexibleBody::setPHI(IN vector<MatrixXd>& phi)
 {
 	if (me.rows() != ne || rho.rows() != 3 || rho.cols() != ne)
 	{
@@ -481,7 +502,7 @@ bool FlexibleBody::setPHI(vector<MatrixXd>& phi)
 	return true;
 }
 /*check once*/
-bool FlexibleBody::setPSI(vector<MatrixXd>& psi)
+bool FlexibleBody::setPSI(IN vector<MatrixXd>& psi)
 {
 	if (psi.size() != ne)
 		throw MBException(INI_FAILURE("Flexible::setPSI"));
@@ -494,7 +515,7 @@ bool FlexibleBody::setPSI(vector<MatrixXd>& psi)
 	return true;
 }
 /*check once*/
-bool FlexibleBody::setKa(MatrixXd& ka)
+bool FlexibleBody::setKa(IN MatrixXd& ka)
 {
 	if (ka.rows() != s || ka.cols() != s)
 		throw MBException(INI_FAILURE("FlexibleBody::setKa"));
@@ -502,7 +523,7 @@ bool FlexibleBody::setKa(MatrixXd& ka)
 	return true;
 }
 /*check once*/
-bool FlexibleBody::setCa(MatrixXd& ca)
+bool FlexibleBody::setCa(IN MatrixXd& ca)
 {
 	if (ca.rows() != s || ca.cols() != s)
 		throw MBException(INI_FAILURE("FlexibleBody::setCa"));
@@ -516,7 +537,7 @@ unsigned int FlexibleBody::type() const
 	return Body::FLEXIBLE;
 }
 /*check once*/
-bool FlexibleBody::calMass(MatrixXd& M, int k)
+bool FlexibleBody::calMass(OUT MatrixXd& M,IN int k)
 {
 	M.block<3, 3>(k, k) = calM11();
 	M.block<3, 3>(k + 3, k + 3) = calM22();
@@ -535,7 +556,7 @@ unsigned int FlexibleBody::nMode() const
 	return s;
 }
 /*check once*/
-Vector3d FlexibleBody::angularVel(int EID) const
+Vector3d FlexibleBody::angularVel(IN int EID) const
 {
 	Vector3d wiP = Body::angularVel();
 	if (EID < 0)
@@ -547,7 +568,7 @@ Vector3d FlexibleBody::angularVel(int EID) const
 	return wiP;
 }
 /*check once*/
-Vector3d FlexibleBody::rhoP(Vector3d& _rp, int EID) const
+Vector3d FlexibleBody::rhoP(IN Vector3d& _rp,IN int EID) const
 {
 	Matrix3d T;
 	A(T);
@@ -557,7 +578,7 @@ Vector3d FlexibleBody::rhoP(Vector3d& _rp, int EID) const
 	return T * (_rp + PHI[EID] * a);
 }
 /*check once*/
-Vector3d FlexibleBody::translationalVel(Vector3d& _rp, int EID) const
+Vector3d FlexibleBody::translationalVel(IN Vector3d& _rp,IN int EID) const
 {
 	Vector3d v(vel[0], vel[1], vel[2]);
 	v += Body::angularVel().cross(rhoP(_rp, EID)) + uiP(EID);
@@ -609,7 +630,7 @@ FlexibleBody::~FlexibleBody()
 {
 
 }
-bool FlexibleBody::Write(Json::Value& body) const
+bool FlexibleBody::Write(OUT Json::Value& body) const
 {
 	Body::Write(body);
 	body["Type"] = Json::Value("Flexible");
@@ -663,11 +684,9 @@ BaseBody::BaseBody()
 	}
 	if (Body::m_s_rtype == RCORDS::EULERQUATERNION)
 		pos[3] = 1;
-	else if (Body::m_s_rtype == RCORDS::EULERANGLE)
-		pos[4] = PI;
 }
 
-BaseBody::BaseBody(VectorXd(*p)(double), VectorXd(*v)(double), VectorXd(*a)(double)):BaseBody()
+BaseBody::BaseBody(IN VectorXd(*p)(double),IN VectorXd(*v)(double),IN VectorXd(*a)(double)):BaseBody()
 {
 	pFun = p;
 	vFun = v;
@@ -682,7 +701,7 @@ BaseBody::~BaseBody()
 	delete[] acc;
 }
 
-bool BaseBody::Write(Json::Value& body) const
+bool BaseBody::Write(OUT Json::Value& body) const
 {
 	Body::Write(body);
 	body["Type"] = Json::Value("Base");
@@ -694,7 +713,7 @@ unsigned int BaseBody::type() const
 	return BASE;
 }
 
-bool BaseBody::calMass(MatrixXd& M, int k)
+bool BaseBody::calMass(OUT MatrixXd& M,IN int k)
 {
 	return true;
 }
@@ -704,15 +723,15 @@ unsigned int BaseBody::nMode() const
 	return 0;
 }
 
-VectorXd BaseBody::acceleration(double t)
+VectorXd BaseBody::acceleration(IN double t)
 {
 	VectorXd a(6+nMode());
+	for (unsigned int i = 0; i < 3; ++i)
+		a(i) = acc[i];
 	if (Body::m_s_rtype==RCORDS::EULERQUATERNION)
 	{
 		Matrix<double, 3, 4> R;
 		AUX::R(pos + 3, R);
-		for (unsigned int i = 0; i < 3; ++i)
-			a(i) = acc[i];
 		Map<Vector4d> ddlam(acc + 3);
 		a.segment(3,3) = 2 * R * ddlam;
 		for (unsigned int i = 0; i < nMode(); ++i)
@@ -720,14 +739,34 @@ VectorXd BaseBody::acceleration(double t)
 	}
 	else if (Body::m_s_rtype == RCORDS::CARDANANGLE)
 	{
-		a.resize(6+nMode());
-		for (unsigned int i = 0; i < 6; ++i)
-			a(i) = acc[i];
+		Map<Vector3d> ddq(acc + 3);
+		MatR3CX Kr(3, 3);
+		AUX::Kr(pos + 3, RCORDS::CARDANANGLE, Kr);
+		a.segment<3>(3) = Kr * ddq;
+		double s1 = sin(pos[3]), c1 = cos(pos[3]);
+		double s2 = sin(pos[4]), c2 = cos(pos[4]);
+		double s3 = sin(pos[5]), c3 = cos(pos[5]);
+		a(3) += c2 * vel[4] * vel[5];
+		a(4) += -s1 * vel[4] * vel[3] + s2 * s1 * vel[5] * vel[4] - c2 * c1 * vel[5] * vel[3];
+		a(5) += c1 * vel[4] * vel[3] - s2 * c1 * vel[5] * vel[4] - c2 * s1 * vel[5] * vel[3];
+	}
+	else if (Body::m_s_rtype == RCORDS::EULERANGLE)
+	{
+		Map<Vector3d> ddq(acc + 3);
+		MatR3CX Kr(3, 3);
+		AUX::Kr(pos + 3, RCORDS::EULERANGLE, Kr);
+		a.segment<3>(3) = Kr * ddq;
+		double s1 = sin(pos[3]), c1 = cos(pos[3]);
+		double s2 = sin(pos[4]), c2 = cos(pos[4]);
+		double s3 = sin(pos[5]), c3 = cos(pos[5]);
+		a(3) += -s3 * vel[4] * vel[5] + c1 * s2 * vel[5] * vel[3] + s1 * c2 * vel[5] * vel[4];
+		a(4) += c3 * vel[4] * vel[5] - c2 * c1 * vel[5] * vel[4] + s2 * s1 * vel[5] * vel[3];
+		a(5) -= s2 * vel[5] * vel[4];
 	}
 	return a;
 }
 /*check once*/
-bool BaseBody::update(double t)
+bool BaseBody::update(IN double t)
 {
 	if (pFun!=nullptr)
 	{

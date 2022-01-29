@@ -1,9 +1,9 @@
 #pragma once
-#include "Body.h"
-#include "Joint.h"
 #include <vector>
 #include <list>
 #include "tree.h"
+#include "Body.h"
+#include "Joint.h"
 #include "auxiliary.h"
 using namespace std;
 using namespace Eigen;
@@ -16,11 +16,11 @@ public:
 	{
 		Body* bptr;
 		JointBase* jptr;
-		BJpair(Body* b = nullptr, JointBase* j = nullptr) { bptr = b; jptr = j; }
+		BJpair(IN Body* b = nullptr,IN JointBase* j = nullptr) { bptr = b; jptr = j; }
 		~BJpair() {};
-		bool operator==(BJpair& other);
-		bool operator<(BJpair& other);
-		bool operator>(BJpair& other);
+		bool operator==(IN BJpair& other);
+		bool operator<(IN BJpair& other);
+		bool operator>(IN BJpair& other);
 	};
 private:
 	myTree<BJpair> MBTree;
@@ -36,19 +36,19 @@ private:
 	VectorXd qprev;                            //absolute coordinates
 	VectorXd dqprev;                           //absolute velocity
 private:
-	bool calytoq(double t,double* y);                   //calculate from y to q.
-	bool caldytodq(double t,double* dy);                //calculate from dy to dq.
-	bool update(double t, double* y, double* dy);               //update q dq Tij Ui betai
+	bool calytoq(IN double t,IN double* y);                   //calculate from y to q.
+	bool caldytodq(IN double t,IN double* dy);                //calculate from dy to dq.
+	bool update(IN double t, IN double* y,IN double* dy);               //update q dq Tij Ui betai
 public:
 	friend class MBSystem;
-	TreeSystem(vector<JointBase*>& jvec);
-	bool calG0(double t, double* y, OUT MatrixXd& G0);
-	bool calG(double t, double* y, OUT MatrixXd& G);
-	bool calM(double t, double* y, OUT MatrixXd& M);
-	bool calg(double t, double* y, double* dy, OUT MatrixXd& g);
-	bool calf(double t, double* y, double* dy, OUT VectorXd& f);
+	TreeSystem(IN vector<JointBase*>& jvec);
+	bool calG0(IN double t,IN double* y, OUT MatrixXd& G0);
+	bool calG(IN double t,IN double* y, OUT MatrixXd& G);
+	bool calM(IN double t,IN double* y, OUT MatrixXd& M);
+	bool calg(IN double t,IN double* y,IN double* dy, OUT MatrixXd& g);
+	bool calf(IN double t,IN double* y,IN double* dy, OUT VectorXd& f);
 	
-	VectorXd rootacc(double t);
+	VectorXd rootacc(IN double t);
 	unsigned int DOF()const;
 	unsigned int NC()const;
 	~TreeSystem();
@@ -66,8 +66,8 @@ private:
 	Equation* peq = nullptr;
 	Solver* psolver = nullptr;
 protected:
-	//vector<Body*> bodyvec;
 	vector<JointBase*> jointvec;
+	vector<int> driveid;
 	VectorXd y0;
 	VectorXd dy0;
 	MatrixXd G;
@@ -78,32 +78,37 @@ protected:
 	VectorXd z;
 	VectorXd fey;
 	VectorXd f;
+	MatrixXd Zbar;
+	VectorXd zbar;
 private:
-	MatrixXd& calG0(double t, double* y);
-	MatrixXd& calG(double t,double* y);
-	MatrixXd& calg(double t,double* y,double* dy);
-	MatrixXd& calM(double t,double* y);
-	VectorXd& calf(double t, double* y, double* dy);
-	bool update(double t, double* y,double* dy);       //update G g M f G0
-	bool initialize();                                //call before calculation
+	MatrixXd& calG0(IN double t,IN double* y);
+	MatrixXd& calG(IN double t,IN double* y);
+	MatrixXd& calg(IN double t,IN double* y,IN double* dy);
+	MatrixXd& calM(IN double t,IN double* y);
+	VectorXd& calf(IN double t,IN double* y,IN double* dy);
+	bool update(IN double t,IN double* y,IN double* dy);       //update G g M f G0
+	bool initialize();                                         //call before calculation
 protected:
-	MatrixXd& calZ(double t, double* y);
-	VectorXd& calz(double t, double* y, double* dy);
-	VectorXd& calfey(double t, double* y, double* dy);       //remain completed.
+	MatrixXd& calZ(IN double t,IN double* y);
+	VectorXd& calz(IN double t,IN double* y,IN double* dy);
+	VectorXd& calfey(IN double t,IN double* y,IN double* dy);       //remain completed.
+	MatrixXd& calZbar(IN double t,IN double* y);
+	VectorXd& calzbar(IN double t,IN double* y,IN double* dy);
 public:
 	friend class Equation;
 	friend class MBFileParser;
 	MBSystem();
 	~MBSystem();
-	bool add(JointBase* j);
-	bool del(JointBase* j);
+	bool add(IN JointBase* j);
+	bool del(IN JointBase* j);
 	unsigned int DOF()const;                          //the number of the generalized coordinates of the system
-	bool sety0(const VectorXd& y0);
-	bool setdy0(const VectorXd& _dy0);
-	bool setTimeInterval(double ti, double te, int N);
-	bool setTolerance(double r = 1e-4, double a = 1e-3);
+	bool sety0(IN const VectorXd& y0);
+	bool setdy0(IN const VectorXd& _dy0);
+	bool setTimeInterval(IN double ti,IN double te, IN int N);
+	bool setTolerance(IN double r = 1e-4, IN double a = 1e-3);
+	bool setToInitial();                              //set postion and velocity to initial state.
 	bool calculate();
-	bool SaveAs(string fname, bool isbinary = false);
+	bool SaveAs(IN string fname, IN bool isbinary = false);
 };
 
 
@@ -115,10 +120,10 @@ protected:
 	MatrixXd L;
 	VectorXd R;
 public:
-	Equation(MBSystem* p);
+	Equation(IN MBSystem* p);
 	~Equation();
-	MatrixXd& Left(double t, VectorXd& y);                    //y is state space variable.
-	VectorXd& Right(double t, VectorXd& y);
+	MatrixXd& Left(IN double t,IN VectorXd& y);                    //y is state space variable.
+	VectorXd& Right(IN double t,IN VectorXd& y);
 	VectorXd initialvalue()const;
 	unsigned int DOF()const;
 	void Initialize();
@@ -140,10 +145,10 @@ private:
 public:
 	friend class MBSystem;
 	friend class MBFileParser;
-	Solver(Equation* p);
+	Solver(IN Equation* p);
 	~Solver();
-	bool setTimeInterval(double ti, double te, int N);
-	bool setTolerance(double r=1e-4, double a=1e-3);
+	bool setTimeInterval(IN double ti,IN double te,IN int N);
+	bool setTolerance(IN double r=1e-4,IN double a=1e-3);
 	bool calculate();
 };
 
@@ -154,24 +159,24 @@ class MBFileParser
 	bool freememo = false;
 protected:
 	void clear();
-	void CheckId(int id);
-	void CheckMass(double m);
-	void CheckJc(const Json::Value& Jc);
-	void CheckRho(const Json::Value& rho);
-	void CheckMat3d(const Json::Value& val);
-	void CheckPos(const Json::Value& val, unsigned int k);
-	void CheckVel(const Json::Value& val, unsigned int k);
-	void GetJc(const Json::Value& Jc, Matrix3d& Ic);
-	void GetRho(const Json::Value& rho, Vector3d& r);
-	void GetMat3d(const Json::Value& val, Matrix3d& M);
-	void GetPos(const Json::Value& val, VectorXd& p);
-	void GetVel(const Json::Value& val, VectorXd& v);
-	void GetFlexibleBody(const string& fname, Body* &p);
+	void CheckId(IN int id);
+	void CheckMass(IN double m);
+	void CheckJc(IN const Json::Value& Jc);
+	void CheckRho(IN const Json::Value& rho);
+	void CheckMat3d(IN const Json::Value& val);
+	void CheckPos(IN const Json::Value& val, IN unsigned int k);
+	void CheckVel(IN const Json::Value& val, IN unsigned int k);
+	void GetJc(IN const Json::Value& Jc, OUT Matrix3d& Ic);
+	void GetRho(IN const Json::Value& rho, OUT Vector3d& r);
+	void GetMat3d(IN const Json::Value& val,OUT Matrix3d& M);
+	void GetPos(IN const Json::Value& val,OUT VectorXd& p);
+	void GetVel(IN const Json::Value& val,OUT VectorXd& v);
+	void GetFlexibleBody(IN const string& fname,OUT Body* &p);
 public:
 	MBFileParser() :pmbs(nullptr) {};
 	~MBFileParser();
-	bool Read(const string& fname);  
-	bool Write(const string& fname);  
+	bool Read(IN const string& fname);  
+	bool Write(IN const string& fname);  
 	bool Simulate();
-	bool SaveDataAs(const string& fname, bool isbinary);
+	bool SaveDataAs(IN const string& fname, IN bool isbinary);
 };

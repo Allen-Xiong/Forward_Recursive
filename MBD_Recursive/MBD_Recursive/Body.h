@@ -7,8 +7,8 @@ using namespace Eigen;
 class Body
 {
 protected:
-	int id = -1;            // id 
-	double tM = 0.;     //total Mass
+	int id = -1;                               // id 
+	double tM = 0.;                            //total Mass
 	double* pos = nullptr;
 	double* vel = nullptr;
 	double* acc = nullptr;
@@ -19,29 +19,30 @@ public:
 		FLEXIBLE = 0x01,
 		BASE = 0x02
 	};
-	static RCORDS m_s_rtype;
-	static unsigned int NC;           //number of the absolute coordinates.
-	Body(double m)noexcept;
+	static RCORDS m_s_rtype;                   //type of rotation coordinates.
+	static unsigned int NC;                    //number of the absolute coordinates.
+	static bool setRcords(IN RCORDS rtype);
+	Body(IN double m)noexcept;
 	Body()noexcept;
-	bool operator==(Body& other)const;
-	bool operator<(Body& other)const;
-	bool operator<=(Body& other)const;
-	bool operator>(Body& other)const;
-	bool A(Matrix3d& M)const;
-	virtual bool setID(int i);
+	bool operator==(IN Body& other)const;
+	bool operator<(IN Body& other)const;
+	bool operator<=(IN Body& other)const;
+	bool operator>(IN Body& other)const;
+	bool A(OUT Matrix3d& M)const;
+	virtual bool setID(IN int i);
 	virtual unsigned int type()const = 0;
-	virtual bool calMass(MatrixXd& M, int k) = 0;                   // M is the system mass matrix, k represents the begin location.
+	virtual bool calMass(OUT MatrixXd& M,IN int k) = 0;                   // M is the system mass matrix, k represents the begin location.
 	virtual unsigned int nMode()const = 0;
 	virtual Vector3d angularVel()const;
-	virtual Vector3d angularVel(int EID)const;                      // angular velocity of the element on the body.
-	virtual Vector3d rhoP(Vector3d& _rp, int EID)const;             //the conjoined vector of element P on the body
-	virtual Vector3d translationalVel(Vector3d& _rp)const;          //the translational velocity of P on the body.
-	virtual Vector3d translationalVel(Vector3d& _rp, int EID)const; //the translational velocity of element P on the body.
+	virtual Vector3d angularVel(IN int EID)const;                      // angular velocity of the element on the body.
+	virtual Vector3d rhoP(IN Vector3d& _rp,IN int EID)const;             //the conjoined vector of element P on the body
+	virtual Vector3d translationalVel(IN Vector3d& _rp)const;          //the translational velocity of P on the body.
+	virtual Vector3d translationalVel(IN Vector3d& _rp,IN int EID)const; //the translational velocity of element P on the body.
 	virtual VectorXd inertiaForce();                                //the inertia force of the body.
 	virtual ~Body();
-	virtual bool Write(Json::Value& body)const;
+	virtual bool Write(OUT Json::Value& body)const;
 protected:
-	virtual Vector3d uiP(int EID)const;                             //the relative velocity of the element P about floating coordinate system.
+	virtual Vector3d uiP(IN int EID)const;                             //the relative velocity of the element P about floating coordinate system.
 public:
 	friend class TreeSystem;
 	friend class JointBase;
@@ -54,14 +55,14 @@ class BaseBody :public Body
 	VectorXd(*aFun)(double) = nullptr;
 public:
 	BaseBody();
-	BaseBody(VectorXd(*p)(double), VectorXd(*v)(double), VectorXd(*a)(double));
+	BaseBody(IN VectorXd(*p)(double),IN VectorXd(*v)(double),IN VectorXd(*a)(double));
 	~BaseBody();
-	virtual bool Write(Json::Value& body)const;
+	virtual bool Write(OUT Json::Value& body)const;
 	unsigned int type()const;
-	bool calMass(MatrixXd& M, int k);
+	bool calMass(OUT MatrixXd& M,IN int k);
 	unsigned int nMode()const;
-	VectorXd acceleration(double t);                     /*remain completed.*/
-	bool update(double t);
+	VectorXd acceleration(IN double t);                     /*remain completed.*/
+	bool update(IN double t);
 };
 
 class RigidBody :public Body
@@ -78,14 +79,14 @@ protected:
 	virtual Matrix3d& calM22();
 public:
 	RigidBody();
-	RigidBody(double m);
-	RigidBody(double m, Matrix3d& I);
+	RigidBody(IN double m);
+	RigidBody(IN double m,IN Matrix3d& I);
 	virtual unsigned int type()const;
-	virtual bool calMass(MatrixXd& M, int k);            
+	virtual bool calMass(OUT MatrixXd& M,IN int k);            
 	virtual unsigned int nMode()const;
 	virtual VectorXd inertiaForce();
 	virtual ~RigidBody();
-	virtual bool Write(Json::Value& body)const;
+	virtual bool Write(OUT Json::Value& body)const;
 };
 
 class FlexibleBody :public RigidBody
@@ -127,27 +128,28 @@ protected:
 	virtual MatR3CX& calM13();
 	virtual MatR3CX& calM23();
 	virtual MatrixXd& calM33();
-	virtual Vector3d uiP(int EID)const;
+	virtual Vector3d uiP(IN int EID)const;
 private:
 	bool calg5();
 	bool calG4();
 	bool calG5();
 public:
 	friend class JointBase;
-	FlexibleBody(int NE, int nmode);
-	bool setMe(VectorXd& Me);
-	bool setRho(MatrixXd& Rho);
-	bool setPHI(vector<MatrixXd>& phi);
-	bool setPSI(vector<MatrixXd>& psi);
-	bool setKa(MatrixXd& ka);
-	bool setCa(MatrixXd& ca);
+	friend class ActiveForce;
+	FlexibleBody(IN int NE,IN int nmode);
+	bool setMe(IN VectorXd& Me);
+	bool setRho(IN MatR3CX& Rho);
+	bool setPHI(IN vector<MatrixXd>& phi);
+	bool setPSI(IN vector<MatrixXd>& psi);
+	bool setKa(IN MatrixXd& ka);
+	bool setCa(IN MatrixXd& ca);
 	virtual unsigned int type()const;
-	virtual bool calMass(MatrixXd& M, int k);
+	virtual bool calMass(OUT MatrixXd& M,IN int k);
 	virtual unsigned int nMode()const;
-	virtual Vector3d angularVel(int EID)const;                      // angular velocity of the element on the body.
-	virtual Vector3d rhoP(Vector3d& _rp, int EID)const;             //the conjoined vector of element P on the body
-	virtual Vector3d translationalVel(Vector3d& _rp, int EID)const;
+	virtual Vector3d angularVel(IN int EID)const;                      // angular velocity of the element on the body.
+	virtual Vector3d rhoP(IN Vector3d& _rp,IN int EID)const;             //the conjoined vector of element P on the body
+	virtual Vector3d translationalVel(IN Vector3d& _rp,IN int EID)const;
 	virtual VectorXd inertiaForce();
 	virtual ~FlexibleBody();
-	virtual bool Write(Json::Value& body)const;
+	virtual bool Write(OUT Json::Value& body)const;
 };

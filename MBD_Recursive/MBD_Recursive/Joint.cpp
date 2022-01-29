@@ -27,7 +27,7 @@ Matrix3d& Revolute::calDih()
 	return Dih;
 }
 
-Revolute::Revolute(Body* Bi_ptr, Body* Bj_ptr, Vector3d& rho_i, Vector3d& rho_j):JointBase(Bi_ptr,Bj_ptr,rho_i,rho_j)
+Revolute::Revolute(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j):JointBase(Bi_ptr,Bj_ptr,rho_i,rho_j)
 {
 	unsigned int si = Bi_ptr->nMode();
 	Ui.resize(6 + si, DOF() + si);
@@ -71,10 +71,11 @@ Matrix3d& JointBase::calBiP()
 	Map<VectorXd> a(yi + DOF(), Bi->nMode());
 	auto& PSI_iP = static_cast<FlexibleBody*>(Bi)->PSI[NP];
 	Vector3d v = PSI_iP * a;
-	Matrix3d til;
+	/*Matrix3d til;
 	AUX::tilde(v, til);
 	BiP.setIdentity();
-	BiP += til;
+	BiP += til;*/
+	AUX::CAtoA(v.data(), BiP);
 	return BiP;
 }
 /*check once*/
@@ -86,10 +87,11 @@ Matrix3d& JointBase::calBjQ()
 	Map<VectorXd> a(Bj->pos + Body::NC, Bj->nMode());
 	auto& PSI_jQ = static_cast<FlexibleBody*>(Bj)->PSI[NQ];
 	Vector3d v = PSI_jQ * a;
-	Matrix3d til;
+	/*Matrix3d til;
 	AUX::tilde(v, til);
 	BjQ.setIdentity();
-	BjQ += til;
+	BjQ += til;*/
+	AUX::CAtoA(v.data(), BjQ);
 	return BjQ;
 }
 /*check once*/
@@ -120,7 +122,7 @@ Vector3d JointBase::Vri() const
 
 
 /*check once*/
-JointBase::JointBase(Body* Bi_ptr, Body* Bj_ptr, const Vector3d& rho_i, const Vector3d& rho_j)
+JointBase::JointBase(IN Body* Bi_ptr,IN Body* Bj_ptr,IN const Vector3d& rho_i,IN const Vector3d& rho_j)
 {
 	Bi = Bi_ptr;
 	Bj = Bj_ptr;
@@ -131,14 +133,14 @@ JointBase::JointBase(Body* Bi_ptr, Body* Bj_ptr, const Vector3d& rho_i, const Ve
 	else
 	{
 		FlexibleBody* pb = static_cast<FlexibleBody*>(Bi);
-		(pb->rho - rhoi).colwise().squaredNorm().minCoeff(&NP);
+		(pb->rho.colwise() - rhoi).colwise().squaredNorm().minCoeff(&NP);
 	}
 	if (Bj->type() != Body::FLEXIBLE)
 		NQ = -1;
 	else
 	{
 		FlexibleBody* pb = static_cast<FlexibleBody*>(Bj);
-		(pb->rho - rhoj).colwise().squaredNorm().minCoeff(&NQ);
+		(pb->rho.colwise() - rhoj).colwise().squaredNorm().minCoeff(&NQ);
 	}
 	BiP.setIdentity();
 	CiP.setIdentity();
@@ -159,11 +161,46 @@ JointBase::~JointBase()
 {
 }
 
+VectorXd JointBase::Acceleration(IN double t)
+{
+	return VectorXd::Zero(DOF());
+}
+
+VectorXd JointBase::Velocity(IN double t)
+{
+	return Map<VectorXd>(dyi, DOF() + Bi->nMode());
+}
+
+VectorXd JointBase::Position(IN double t)
+{
+	return Map<VectorXd>(yi, DOF() + Bi->nMode());
+}
+
+bool JointBase::operator<(IN const JointBase& other) const
+{
+	return (*Bi) < (*other.Bi);
+}
+
+void JointBase::Acceleration(IN double t,OUT double* ddy) const
+{
+	return;
+}
+
+void JointBase::Velocity(IN double t,OUT double* dy) const
+{
+	return;
+}
+
+void JointBase::Position(IN double t,OUT double* y) const
+{
+	return;
+}
+
 /*check once*/
 MatrixXd& JointBase::calUi(IN double t, IN double* y)
 {
 	Vector3d rhoip = rhoi;
-	Vector3d ho, hh;
+	MatR3CX ho, hh;
 	Matrix3d Ai, Ah0;
 	Bi->A(Ai);
 	calAh0(Ah0);
@@ -282,11 +319,15 @@ bool JointBase::calytoq(IN double t, IN double* y)
 	Bj->A(Aj);
 	//calculate rotation
 	if (Body::m_s_rtype == RCORDS::EULERQUATERNION)
+	{
 		AUX::AtoEQ(Ai, Bi->pos + 3);
+		//AUX::EQCorrect(Bi->pos + 3, 1e-4, 1e-3, 1);
+	}
 	else if (Body::m_s_rtype == RCORDS::EULERANGLE)
 		AUX::AtoEA(Ai, Bi->pos + 3);
 	else if (Body::m_s_rtype == RCORDS::CARDANANGLE)
 		AUX::AtoCA(Ai, Bi->pos + 3);
+
 	//calculate translation
 	Vector3d rhoip=rhoi, rhojq=rhoj;
 	if (Bi->type() == Body::FLEXIBLE)
@@ -316,8 +357,9 @@ bool JointBase::calytoq(IN double t, IN double* y)
 			Bi->pos[nc + i] = yi[del + i];
 		}
 	}
-	for (unsigned int i = 0; i < Body::NC; ++i)
-		cout << Bi->pos[i] << endl;
+	/*for (unsigned int i = 0; i < Body::NC+Bi->nMode(); ++i)
+		cout << Bi->pos[i] << " ";
+	cout << endl;*/
 	return true;
 }
 /*check once*/
@@ -328,7 +370,7 @@ bool JointBase::caldytodq(IN double t, IN double* dy)
 	unsigned int sj = Bj->nMode();
 	VectorXd vi;
 	Map<VectorXd> y(dyi, DOF() + si);
-	Map<VectorXd> vj(Bj->vel, 7 + sj);
+	Map<VectorXd> vj(Bj->vel, Body::NC + sj);
 	if (Body::m_s_rtype==RCORDS::EULERQUATERNION)
 	{//Euler Quaternion
 		MatrixXd Kj = MatrixXd::Zero(6 + sj, 7 + sj);
@@ -346,6 +388,7 @@ bool JointBase::caldytodq(IN double t, IN double* dy)
 			Bi->vel[i + 3] = lami[i];
 		for (unsigned int i = 0; i < si; ++i)
 			Bi->vel[7 + i] = vi(6 + i);
+		//AUX::EQVCorrect(Bi->pos + 3,Bi->vel+3, 1e-4, 1e-3, 1);
 	}
 	else if (Body::m_s_rtype==RCORDS::EULERANGLE)
 	{//Euler Angle
@@ -386,18 +429,18 @@ bool JointBase::caldytodq(IN double t, IN double* dy)
 	return true;
 }
 /*check once*/
-bool JointBase::setCiP(const Matrix3d& c)
+bool JointBase::setCiP(IN const Matrix3d& c)
 {
 	CiP = c;
 	return true;
 }
 /*check once*/
-bool JointBase::setCjQ(const Matrix3d& c)
+bool JointBase::setCjQ(IN const Matrix3d& c)
 {
 	CjQ = c;
 	return true;
 }
-bool JointBase::Write(Json::Value& joint) const
+bool JointBase::Write(OUT Json::Value& joint) const
 {
 	if (type() == JointBase::REVOLUTIONAL)
 		joint["Type"] = Json::Value("Revolute");
@@ -411,6 +454,10 @@ bool JointBase::Write(Json::Value& joint) const
 		joint["Type"] = Json::Value("Cylinder");
 	else if (type() == JointBase::VIRTUAL)
 		joint["Type"] = Json::Value("Virtual");
+	else if (type() == JointBase::REVOLUTIONALDRIVE)
+		joint["Type"] = Json::Value("RevoluteDrive");
+	else if (type() == JointBase::UNIVERSALDRIVE)
+		joint["Type"] = Json::Value("UniverseDrive");
 	else
 		throw MBException("There is no such type joint.");
 	joint["Bi_Id"] = Json::Value(Bi->id);
@@ -475,7 +522,7 @@ Matrix3d& Universe::calDih()
 	return Dih;
 }
 /*check once*/
-Universe::Universe(Body* Bi_ptr, Body* Bj_ptr, Vector3d& rho_i, Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
+Universe::Universe(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
 {
 	unsigned int si = Bi_ptr->nMode();
 	Ui.resize(6 + si, DOF() + si);
@@ -549,7 +596,7 @@ Matrix3d& Virtual::calDih()
 	return Dih;
 }
 /*check once*/
-Virtual::Virtual(Body* Bi_ptr, Body* Bj_ptr, Vector3d& rho_i, Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
+Virtual::Virtual(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
 {
 	unsigned int si = Bi_ptr->nMode();
 	Ui.resize(6 + si, DOF() + si);
@@ -622,7 +669,7 @@ Matrix3d& Sphere::calDih()
 	return Dih;
 }
 /*check once*/
-Sphere::Sphere(Body* Bi_ptr, Body* Bj_ptr, Vector3d& rho_i, Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
+Sphere::Sphere(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
 {
 	unsigned int si = Bi_ptr->nMode();
 	Ui.resize(6 + si, DOF() + si);
@@ -668,7 +715,7 @@ Matrix3d& Prism::calDih()
 	return Dih;
 }
 /*check once*/
-Prism::Prism(Body* Bi_ptr, Body* Bj_ptr, Vector3d& rho_i, Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
+Prism::Prism(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
 {
 	unsigned int si = Bi_ptr->nMode();
 	Ui.resize(6 + si, DOF() + si);
@@ -722,7 +769,7 @@ Matrix3d& Cylinder::calDih()
 	return Dih;
 }
 /*check once*/
-Cylinder::Cylinder(Body* Bi_ptr, Body* Bj_ptr, Vector3d& rho_i, Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
+Cylinder::Cylinder(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j) :JointBase(Bi_ptr, Bj_ptr, rho_i, rho_j)
 {
 	unsigned int si = Bi_ptr->nMode();
 	Ui.resize(6 + si, DOF() + si);
@@ -745,4 +792,160 @@ inline unsigned int Cylinder::DOF() const
 inline unsigned int Cylinder::type() const
 {
 	return JointBase::CYLINDRICAL;
+}
+
+RevoluteDrive::RevoluteDrive(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j,IN double(*f)(double)):Revolute(Bi_ptr,Bj_ptr,rho_i,rho_j)
+{
+	if (!f)
+		throw MBException(INI_FAILURE("RevoluteDrive::RevoluteDrive"));
+	pf1 = f;
+}
+
+RevoluteDrive::~RevoluteDrive()
+{
+}
+
+inline unsigned int RevoluteDrive::type() const
+{
+	return JointBase::REVOLUTIONALDRIVE;
+}
+
+bool RevoluteDrive::calytoq(IN double t, IN double* y)
+{
+	yi[0] = pf1(t);
+	JointBase::calytoq(t, y);
+	return true;;
+}
+
+bool RevoluteDrive::caldytodq(IN double t, IN double* dy)
+{
+	double v = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	dyi[0] = v;
+	JointBase::caldytodq(t, dy);
+	return true;
+}
+
+VectorXd RevoluteDrive::Acceleration(IN double t)
+{
+	double a = (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+	return VectorXd::Constant(1, a);
+}
+
+VectorXd RevoluteDrive::Velocity(IN double t)
+{
+	double v=(pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	return VectorXd::Constant(1, v);
+}
+
+VectorXd RevoluteDrive::Position(IN double t)
+{
+	return VectorXd::Constant(1, pf1(t));
+}
+
+void RevoluteDrive::Acceleration(IN double t,OUT double* ddy) const
+{
+	ddy[0]= (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+	return;
+}
+
+void RevoluteDrive::Velocity(IN double t,OUT double* dy) const
+{
+	dy[0] = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	return;
+}
+
+void RevoluteDrive::Position(IN double t,OUT double* y) const
+{
+	y[0] = pf1(t);
+}
+
+UniverseDrive::UniverseDrive(IN Body* Bi_ptr,IN Body* Bj_ptr,IN Vector3d& rho_i,IN Vector3d& rho_j,IN double(*q1)(double),IN double(*q2)(double)):
+	Universe(Bi_ptr,Bj_ptr,rho_i,rho_j)
+{
+	if (!q1 && !q2)
+		throw MBException(INI_FAILURE("UniverseDrive::UniverseDrive"));
+	pf1 = q1;
+	pf2 = q2;
+}
+
+UniverseDrive::~UniverseDrive()
+{
+
+}
+
+bool UniverseDrive::calytoq(IN double t, IN double* y)
+{
+	if (pf1)
+		yi[0] = pf1(t);
+	if (pf2)
+		yi[1] = pf2(t);
+	JointBase::calytoq(t, y);
+	return true;
+}
+
+bool UniverseDrive::caldytodq(IN double t, IN double* dy)
+{
+	if (pf1)
+		dyi[0] = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	if (pf2)
+		dyi[1] = (pf2(t + MILLISECOND) - pf2(t - MILLISECOND)) / (2 * MILLISECOND);
+	JointBase::caldytodq(t, dy);
+	return true;
+}
+
+VectorXd UniverseDrive::Acceleration(IN double t)
+{
+	VectorXd a(2);
+	a << 0, 0;
+	if (pf1)
+		a(0) = (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+	if (pf2)
+		a(1) = (pf2(t + MILLISECOND) - 2 * pf2(t) + pf2(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+	return a;
+}
+
+VectorXd UniverseDrive::Velocity(IN double t)
+{
+	VectorXd v(2);
+	v << 0, 0;
+	if (pf1)
+		v(0) = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	if (pf2)
+		v(1) = (pf2(t + MILLISECOND) - pf2(t - MILLISECOND)) / (2 * MILLISECOND);
+	return v;
+}
+
+VectorXd UniverseDrive::Position(IN double t)
+{
+	VectorXd p(2);
+	p << 0, 0;
+	if (pf1)
+		p(0) = pf1(t);
+	if (pf2)
+		p(1) = pf2(t);
+	return p;
+}
+
+void UniverseDrive::Acceleration(IN double t,OUT double* ddy) const
+{
+	if (pf1)
+		ddy[0]= (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+	if (pf2)
+		ddy[1]= (pf2(t + MILLISECOND) - 2 * pf2(t) + pf2(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+}
+
+void UniverseDrive::Velocity(IN	double t,OUT double* dy) const
+{
+	if (pf1)
+		dy[0]= (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	if (pf2)
+		dy[1]= (pf2(t + MILLISECOND) - pf2(t - MILLISECOND)) / (2 * MILLISECOND);
+}
+
+void UniverseDrive::Position(IN double t,OUT double* y) const
+{
+	if (pf1)
+		y[0] = pf1(t);
+	if (pf2)
+		y[1] = pf2(t);
 }

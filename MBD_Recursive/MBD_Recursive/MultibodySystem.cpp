@@ -10,7 +10,7 @@
 * and assign the coordinates for the bodies in the system
 */
 /*check once*/
-bool TreeSystem::calytoq(double t, double* y)
+bool TreeSystem::calytoq(IN double t,IN double* y)
 {
 	double* yi = y;
 	for (unsigned int i = 0; i < nb; ++i)
@@ -21,7 +21,7 @@ bool TreeSystem::calytoq(double t, double* y)
 	return true;
 }
 /*check once*/
-bool TreeSystem::caldytodq(double t, double* dy)
+bool TreeSystem::caldytodq(IN double t,IN double* dy)
 {
 	double* dyi = dy;
 	for (unsigned int i = 0; i < nb; ++i)
@@ -32,7 +32,7 @@ bool TreeSystem::caldytodq(double t, double* dy)
 	return true;
 }
 /*check once*/
-TreeSystem::TreeSystem(vector<JointBase*>& jvec)
+TreeSystem::TreeSystem(IN vector<JointBase*>& jvec)
 {
 	Body* baseptr = nullptr;
 	for (auto& item : jvec)
@@ -90,6 +90,8 @@ TreeSystem::TreeSystem(vector<JointBase*>& jvec)
 	delta = ydimcum[nb - 1] + ydimvec[nb - 1];
 	yprev.resize(delta);
 	dyprev.resize(delta);
+	yprev.setConstant(1000000);
+	dyprev.setConstant(1000000);
 	unsigned int nc = qdimcum[nb - 1] + qdimvec[nb - 1];
 	qprev.resize(nc);
 	dqprev.resize(nc);
@@ -111,7 +113,7 @@ TreeSystem::TreeSystem(vector<JointBase*>& jvec)
 	}
 }
 /*check once*/
-bool TreeSystem::calG0(double t, double* y, OUT MatrixXd& G0)
+bool TreeSystem::calG0(IN double t,IN double* y, OUT MatrixXd& G0)
 {
 	int I, J;
 	Body * pbj;
@@ -122,7 +124,7 @@ bool TreeSystem::calG0(double t, double* y, OUT MatrixXd& G0)
 	{
 		I = bjvec[i]->bptr->id - 1;
 		pbj = bjvec[i]->jptr->Bj;
-		brow = qdimcum[I] - (Body::NC - 6)*I;                //q是用欧拉四元数描述姿态的 7-1=6
+		brow = qdimcum[I] - (Body::NC - 6)*I;                //if use Euler Quaternion,then 7-1=6
 		rdim = qdimvec[I] - (Body::NC - 6);
 		if (pbj->id == 0)
 		{
@@ -141,7 +143,7 @@ bool TreeSystem::calG0(double t, double* y, OUT MatrixXd& G0)
 	return true;
 }
 /*check once*/
-bool TreeSystem::calG(double t, double* y, OUT MatrixXd& G)
+bool TreeSystem::calG(IN double t,IN double* y, OUT MatrixXd& G)
 {
 	Body* pbi = nullptr;
 	Body* pbj = nullptr;
@@ -187,7 +189,7 @@ bool TreeSystem::calG(double t, double* y, OUT MatrixXd& G)
 	return true;
 }
 /*check once*/
-bool TreeSystem::calM(double t, double* y, OUT MatrixXd& M)
+bool TreeSystem::calM(IN double t, IN double* y, OUT MatrixXd& M)
 {
 	for (unsigned int i = 0; i < nb; ++i)
 	{
@@ -196,7 +198,7 @@ bool TreeSystem::calM(double t, double* y, OUT MatrixXd& M)
 	return true;
 }
 /*check once*/
-bool TreeSystem::calg(double t, double* y, double* dy, OUT MatrixXd& g)
+bool TreeSystem::calg(IN double t,IN double* y,IN double* dy, OUT MatrixXd& g)
 {
 	Body* pbi = nullptr;
 	Body* pbj = nullptr;
@@ -242,7 +244,7 @@ bool TreeSystem::calg(double t, double* y, double* dy, OUT MatrixXd& g)
 	return true;
 }
 /*check once*/
-bool TreeSystem::calf(double t, double* y, double* dy, OUT VectorXd& f)
+bool TreeSystem::calf(IN double t,IN double* y, IN double* dy, OUT VectorXd& f)
 {
 	for (unsigned int i = 0; i < nb; ++i)
 	{
@@ -251,13 +253,15 @@ bool TreeSystem::calf(double t, double* y, double* dy, OUT VectorXd& f)
 	return true;
 }
 /*check once*/
-bool TreeSystem::update(double t, double* y, double* dy)
+bool TreeSystem::update(IN double t, IN double* y,IN double* dy)
 {
 	//update q dq Tij Ui betai
-	if (AUX::isEqual(yprev.data(), y, yprev.rows()) && AUX::isEqual(dyprev.data(), dy, dyprev.rows()))
+	bool isyequal = AUX::isEqual(yprev.data(), y, yprev.rows());
+	bool isdyequal = AUX::isEqual(dyprev.data(), dy, dyprev.rows());
+	if (isyequal && isdyequal)
 		return false;                        //already updated!
 	double* yi = y, * dyi = dy;
-	if (!AUX::isEqual(yprev.data(), y, yprev.rows()))
+	if (!isyequal)
 	{
 		for (int i = 0; i < yprev.rows(); ++i)
 		{//update yprev
@@ -272,7 +276,7 @@ bool TreeSystem::update(double t, double* y, double* dy)
 			yi += ydimvec[i];
 		}
 	}
-	if (!AUX::isEqual(dyprev.data(), dy, dyprev.rows()))
+	if (!isdyequal)
 	{
 		for (int i = 0; i < dyprev.rows(); ++i)
 		{// update dyprev
@@ -291,7 +295,7 @@ bool TreeSystem::update(double t, double* y, double* dy)
 	return true;
 }
 /*check once*/
-VectorXd TreeSystem::rootacc(double t)
+VectorXd TreeSystem::rootacc(IN double t)
 {
 	return static_cast<BaseBody*>(bjroot->bptr)->acceleration(t);
 }
@@ -311,17 +315,17 @@ TreeSystem::~TreeSystem()
 
 }
 /*check once*/
-bool TreeSystem::BJpair::operator==(BJpair& other)
+bool TreeSystem::BJpair::operator==(IN BJpair& other)
 {
 	return (bptr == other.bptr) && (jptr == other.jptr);
 }
 /*check once*/
-bool TreeSystem::BJpair::operator<(BJpair& other)
+bool TreeSystem::BJpair::operator<(IN BJpair& other)
 {
 	return (*bptr) < (*other.bptr);
 }
 /*check once*/
-bool TreeSystem::BJpair::operator>(BJpair& other)
+bool TreeSystem::BJpair::operator>(IN BJpair& other)
 {
 	return (*bptr) > (*other.bptr);
 }
@@ -342,7 +346,7 @@ MBSystem::~MBSystem()
 		delete peq;
 }
 /*check once*/
-bool MBSystem::add(JointBase* j)
+bool MBSystem::add(IN JointBase* j)
 {
 	if (std::find(jointvec.begin(), jointvec.end(), j) == jointvec.end())
 	{
@@ -353,7 +357,7 @@ bool MBSystem::add(JointBase* j)
 		return false;
 }
 /*check once*/
-bool MBSystem::del(JointBase* j)
+bool MBSystem::del(IN JointBase* j)
 {
 	auto it = std::find(jointvec.begin(), jointvec.end(), j);
 	if (it == jointvec.end())
@@ -367,26 +371,31 @@ unsigned int MBSystem::DOF() const
 	return dof;
 }
 /*check once*/
-bool MBSystem::sety0(const VectorXd& _y0)
+bool MBSystem::sety0(IN const VectorXd& _y0)
 {
 	y0 = _y0;
 	return true;
 }
 /*check once*/
-bool MBSystem::setdy0(const VectorXd& _dy0)
+bool MBSystem::setdy0(IN const VectorXd& _dy0)
 {
 	dy0 = _dy0;
 	return true;
 }
 /*check once*/
-bool MBSystem::setTimeInterval(double ti, double te, int N)
+bool MBSystem::setTimeInterval(IN double ti,IN double te,IN int N)
 {
 	return psolver->setTimeInterval(ti, te, N);
 }
 /*check once*/
-bool MBSystem::setTolerance(double r, double a)
+bool MBSystem::setTolerance(IN double r,IN double a)
 {
 	return psolver->setTolerance(r, a);
+}
+bool MBSystem::setToInitial()
+{
+	update(psolver->t_ini, y0.data(), dy0.data());
+	return true;
 }
 /*check once*/
 bool MBSystem::calculate()
@@ -401,7 +410,7 @@ bool MBSystem::calculate()
 timespan
 generalized coordinates velocity acceleration
 absolute coordinates velocity acceleration*/
-bool MBSystem::SaveAs(string fname, bool isbinary)
+bool MBSystem::SaveAs(IN string fname,IN bool isbinary)
 {
 	ofstream fout;
 	if (isbinary)
@@ -453,7 +462,7 @@ bool MBSystem::SaveAs(string fname, bool isbinary)
 	return true;
 }
 /*check once*/
-Solver::Solver(Equation* p)
+Solver::Solver(IN Equation* p)
 {
 	pe = p;
 	Atol = 1e-3;
@@ -468,7 +477,7 @@ Solver::~Solver()
 
 }
 /*check once*/
-bool Solver::setTimeInterval(double ti, double te, int N)
+bool Solver::setTimeInterval(IN double ti,IN double te,IN int N)
 {
 	t_ini = ti;
 	t_end = te;
@@ -476,7 +485,7 @@ bool Solver::setTimeInterval(double ti, double te, int N)
 	return true;
 }
 /*check once*/
-bool Solver::setTolerance(double r, double a)
+bool Solver::setTolerance(IN double r,IN double a)
 {
 	Rtol = r;
 	Atol = a;
@@ -492,20 +501,23 @@ bool Solver::calculate()
 	dy.head(pe->DOF() / 2) = y.tail(pe->DOF() / 2);
 	dy.tail(pe->DOF() / 2).setZero();
 	double t = t_ini;
+	unsigned int cnt = 0;
 	while (t<t_end)
 	{
 		tspan.push_back(t);
 		Y.push_back(y);
 		DY.push_back(dy);
-
+		if (cnt % 1000 == 0)
+			cout << "time passed by " << t << " s." << endl;
 		dy = pe->Left(t, y).partialPivLu().solve(pe->Right(t, y));
 		y += dy * dt;
 		t += dt;
+		cnt++;
 	}
 	return true;
 }
 /*check once*/
-Equation::Equation(MBSystem* p)
+Equation::Equation(IN MBSystem* p)
 {
 	pmbs = p;
 	if (pmbs->dof != 0)
@@ -521,22 +533,22 @@ Equation::~Equation()
 
 }
 /*check once*/
-MatrixXd& Equation::Left(double t, VectorXd& y)
+MatrixXd& Equation::Left(IN double t,IN VectorXd& y)
 {
 	// update first
 	auto& n = pmbs->dof;
 	pmbs->update(t, y.data(), y.data() + n);
-	L.block(n, n, n, n) = pmbs->calZ(t, y.data());
+	L.block(n, n, n, n) = pmbs->calZbar(t, y.data());
 	return L;
 }
 /*check once*/
-VectorXd& Equation::Right(double t, VectorXd& y)
+VectorXd& Equation::Right(IN double t,IN VectorXd& y)
 {
 	// update first
 	pmbs->update(t, y.data(), y.data() + pmbs->dof);
 	auto& n = pmbs->dof;
 	R.segment(0, n) = y.segment(n, n);
-	R.segment(n, n) = pmbs->calz(t, y.data(), y.data() + n) + pmbs->calfey(t, y.data(), y.data() + n);
+	R.segment(n, n) = pmbs->calzbar(t, y.data(), y.data() + n);
 	return R;
 }
 /*check once*/
@@ -559,43 +571,54 @@ void Equation::Initialize()
 	L.block(0, 0, pmbs->dof, pmbs->dof).setIdentity();
 }
 
-MatrixXd& MBSystem::calG0(double t, double* y)
+MatrixXd& MBSystem::calG0(IN double t,IN double* y)
 {
 	// TODO: insert return statement here
 	mbtree->calG0(t, y, G0);
 	return G0;
 }
 
-MatrixXd& MBSystem::calG(double t, double* y)
+MatrixXd& MBSystem::calG(IN double t,IN double* y)
 {
 	// TODO: insert return statement here
 	mbtree->calG(t, y, G);
 	return G;
 }
 
-MatrixXd& MBSystem::calg(double t, double* y, double* dy)
+MatrixXd& MBSystem::calg(IN double t,IN double* y,IN double* dy)
 {
 	// TODO: insert return statement here
 	mbtree->calg(t, y, dy, g);
 	return g;
 }
 
-MatrixXd& MBSystem::calM(double t, double* y)
+MatrixXd& MBSystem::calM(IN double t,IN double* y)
 {
 	// TODO: insert return statement here
 	mbtree->calM(t, y, M);
 	return M;
 }
 
-VectorXd& MBSystem::calf(double t, double* y, double* dy)
+VectorXd& MBSystem::calf(IN double t,IN double* y,IN double* dy)
 {
 	// TODO: insert return statement here
 	mbtree->calf(t, y, dy, f);
 	return f;
 }
 /*check once*/
-bool MBSystem::update(double t, double* y, double* dy)
+bool MBSystem::update(IN double t,IN double* y,IN double* dy)
 {
+	/*some joints are drive joints*/
+	if (!driveid.empty())
+	{
+		for (auto i : driveid)
+		{
+			double* yi = y + mbtree->ydimcum[i];
+			double* dyi = dy + mbtree->ydimcum[i];
+			jointvec[i]->Position(t, yi);
+			jointvec[i]->Velocity(t, dyi);
+		}
+	}
 	/*call mbtree to update first*/
 	if (!mbtree->update(t, y, dy))
 		return false;
@@ -606,7 +629,9 @@ bool MBSystem::update(double t, double* y, double* dy)
 	calG(t, y);
 	calg(t, y, dy);
 	calf(t, y, dy);
-	
+	calZ(t, y);
+	calz(t, y, dy);
+	calfey(t, y, dy);
 	return true;
 }
 
@@ -619,6 +644,13 @@ bool MBSystem::initialize()
 	mbtree = new TreeSystem(jointvec);
 	dof = mbtree->DOF();
 	nc = mbtree->NC();
+	sort(jointvec.begin(), jointvec.end(), [](JointBase* p1, JointBase* p2) {return (*p1) < (*p2); });
+	driveid.clear();
+	for (unsigned int i = 0; i < jointvec.size(); ++i)
+	{
+		if (jointvec[i]->type() > JointBase::VIRTUAL)
+			driveid.push_back(i);
+	}
 	//allocate space
 	y0.resize(dof);
 	G.resize(nc, dof);
@@ -627,6 +659,8 @@ bool MBSystem::initialize()
 	g.resize(nc, mbtree->nb);
 	Z.resize(dof, dof);
 	z.resize(dof);
+	Zbar.resizeLike(Z);
+	zbar.resizeLike(z);
 	fey.resize(dof);
 	f.resize(nc);
 	//set zeros
@@ -637,6 +671,8 @@ bool MBSystem::initialize()
 	g.setZero();
 	Z.setZero();
 	z.setZero();
+	Zbar.setZero();
+	zbar.setZero();
 	fey.setZero();
 	f.setZero();
 	//Equation initialize
@@ -644,24 +680,64 @@ bool MBSystem::initialize()
 	return true;
 }
 /*check once*/
-MatrixXd& MBSystem::calZ(double t, double* y)
+MatrixXd& MBSystem::calZ(IN double t,IN double* y)
 {
 	// calculate generalized Mass matrix Z
 	Z = G.transpose() * M * G;
 	return Z;
 }
 /*check once*/
-VectorXd& MBSystem::calz(double t, double* y, double* dy)
+VectorXd& MBSystem::calz(IN double t,IN double* y,IN double* dy)
 {
-	// TODO: insert return statement here
+	// calculate generalized force z
 	z = G.transpose() * (f - M * (g.rowwise().sum() + G0 * mbtree->rootacc(t)));
 	return z;
 }
 /*check once*/
-VectorXd& MBSystem::calfey(double t, double* y, double* dy)
+VectorXd& MBSystem::calfey(IN double t,IN double* y,IN double* dy)
 {
-	// TODO: insert return statement here
+	// calculate force element force
 	return fey;
+}
+
+MatrixXd& MBSystem::calZbar(IN double t,IN double* y)
+{
+	if (driveid.empty())
+		return Z;
+	else
+	{
+		Zbar = Z;
+		for (auto i : driveid)
+		{
+			int k = mbtree->ydimcum[i];
+			unsigned int del = jointvec[i]->DOF();
+			for (int m = k; m < (int)k + del; ++m)
+			{
+				Zbar.col(m).setZero();
+				Zbar(m, m) = -1;
+			}
+		}
+		return Zbar;
+	}
+}
+
+VectorXd& MBSystem::calzbar(IN double t,IN double* y,IN double* dy)
+{
+	if (driveid.empty())
+		return z;
+	else
+	{
+		zbar = z;
+		for (auto i : driveid)
+		{
+			int k = mbtree->ydimcum[i];
+			unsigned int del = jointvec[i]->DOF();
+			VectorXd a = static_cast<JointBase*>(jointvec[i])->Acceleration(t);
+			for (int m = k; m < (int)k + del; ++m)
+				zbar -= Z.col(m) * a(m - k);
+		}
+		return zbar;
+	}
 }
 
 void MBFileParser::clear()
@@ -675,56 +751,56 @@ void MBFileParser::clear()
 	return;
 }
 
-void MBFileParser::CheckId(int id)
+void MBFileParser::CheckId(IN int id)
 {
 	if (id < 0)
 		throw MBException("Body Id error!");
 	return;
 }
 
-void MBFileParser::CheckMass(double m)
+void MBFileParser::CheckMass(IN double m)
 {
 	if (m <= 0)
 		throw MBException("Body Mass error!");
 	return;
 }
 
-void MBFileParser::CheckJc(const Json::Value& Jc)
+void MBFileParser::CheckJc(IN const Json::Value& Jc)
 {
 	if (Jc.size() != 6)
 		throw MBException("Body Jc dimension error!");
 	return;
 }
 
-void MBFileParser::CheckRho(const Json::Value& rho)
+void MBFileParser::CheckRho(IN const Json::Value& rho)
 {
 	if (rho.size() != 3)
 		throw MBException("Joint point vector dimension error!");
 	return;
 }
 
-void MBFileParser::CheckMat3d(const Json::Value& val)
+void MBFileParser::CheckMat3d(IN const Json::Value& val)
 {
 	if (val.size() != 9)
 		throw MBException("Matrix3d dimension error!");
 	return;
 }
 
-void MBFileParser::CheckPos(const Json::Value& val, unsigned int k)
+void MBFileParser::CheckPos(IN const Json::Value& val,IN unsigned int k)
 {
 	if (val.size() != k)
 		throw MBException("Position dimension error!");
 	return;
 }
 
-void MBFileParser::CheckVel(const Json::Value& val, unsigned int k)
+void MBFileParser::CheckVel(IN const Json::Value& val,IN unsigned int k)
 {
 	if (val.size() != k)
 		throw MBException("Velocity dimension error!");
 	return;
 }
 
-void MBFileParser::GetJc(const Json::Value& Jc,Matrix3d& Ic)
+void MBFileParser::GetJc(IN const Json::Value& Jc,OUT Matrix3d& Ic)
 {
 	for (unsigned int j = 0; j < 3; ++j)
 		Ic(0, j) = Jc[j].asDouble();
@@ -737,13 +813,13 @@ void MBFileParser::GetJc(const Json::Value& Jc,Matrix3d& Ic)
 	return;
 }
 
-void MBFileParser::GetRho(const Json::Value& rho, Vector3d& r)
+void MBFileParser::GetRho(IN const Json::Value& rho,OUT Vector3d& r)
 {
 	for (unsigned int i = 0; i < 3; ++i)
 		r(i) = rho[i].asDouble();
 }
 
-void MBFileParser::GetFlexibleBody(const string& fname, Body*& p)
+void MBFileParser::GetFlexibleBody(IN const string& fname,OUT Body*& p)
 {
 	int NE, NM;
 	fstream fin(fname, ios::in);
@@ -753,7 +829,7 @@ void MBFileParser::GetFlexibleBody(const string& fname, Body*& p)
 	if (NE <= 0 || NM <= 0)
 		throw MBException("Modal Data Error!");
 	VectorXd me(NE);
-	MatrixXd rho(3, NE);
+	MatR3CX rho(3, NE);
 	vector<MatrixXd> phi(NE, MatrixXd(3, NM));
 	vector<MatrixXd> psi(NE, MatrixXd(3, NM));
 	MatrixXd ka(NM, NM);
@@ -792,7 +868,7 @@ void MBFileParser::GetFlexibleBody(const string& fname, Body*& p)
 	return;
 }
 
-void MBFileParser::GetMat3d(const Json::Value& val, Matrix3d& M)
+void MBFileParser::GetMat3d(IN const Json::Value& val,OUT Matrix3d& M)
 {
 	for (unsigned int i = 0; i < 3; ++i)
 	{
@@ -802,7 +878,7 @@ void MBFileParser::GetMat3d(const Json::Value& val, Matrix3d& M)
 	return;
 }
 
-void MBFileParser::GetPos(const Json::Value& val, VectorXd& p)
+void MBFileParser::GetPos(IN const Json::Value& val,OUT VectorXd& p)
 {
 	p.resize(val.size());
 	for (unsigned int i = 0; i < val.size(); ++i)
@@ -810,7 +886,7 @@ void MBFileParser::GetPos(const Json::Value& val, VectorXd& p)
 	return;
 }
 
-void MBFileParser::GetVel(const Json::Value& val, VectorXd& v)
+void MBFileParser::GetVel(IN const Json::Value& val,OUT VectorXd& v)
 {
 	v.resize(val.size());
 	for (int i = 0; i < v.rows(); ++i)
@@ -829,7 +905,7 @@ MBFileParser::~MBFileParser()
 	}
 }
 
-bool MBFileParser::Read(const string& fname)
+bool MBFileParser::Read(IN const string& fname)
 {
 	ifstream fin(fname, ios::binary);
 	if (!fin)
@@ -840,6 +916,17 @@ bool MBFileParser::Read(const string& fname)
 	Json::Value root;
 	if (!reader.parse(fin, root))
 		throw MBException("Parse json file error!");
+	//set Rcords type
+	if (root.isMember("RCord"))
+	{
+		string rtype = root["RCord"].asString();
+		if (rtype == "Euler Quaternion")
+			Body::setRcords(RCORDS::EULERQUATERNION);
+		else if (rtype == "Euler Angle")
+			Body::setRcords(RCORDS::EULERANGLE);
+		else if (rtype == "Cardan Angle")
+			Body::setRcords(RCORDS::CARDANANGLE);
+	}
 	// create body
 	unsigned int nb = root["Body"].size();
 	bodyvec.resize(nb);
@@ -922,6 +1009,17 @@ bool MBFileParser::Read(const string& fname)
 		{
 			pj = new Virtual(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj);
 		}
+		else if (jtype == "RevoluteDrive")
+		{
+			if (Bi_id%2==1)
+				pj = new RevoluteDrive(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj, [](double t) {return -0.2 * PI * t + PI; });
+			else
+				pj = new RevoluteDrive(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj, [](double t) {return 0.2 * PI * t - PI; });
+		}
+		else if (jtype == "UniverseDrive")
+		{
+			pj = new UniverseDrive(bodyvec[Bi_id], bodyvec[Bj_id], rhoi, rhoj, [](double t) {return 0.1 * PI * t - PI / 2; }, nullptr);
+		}
 		else
 		{
 			throw MBException("There is no such type joint:" + jtype);
@@ -977,11 +1075,19 @@ bool MBFileParser::Read(const string& fname)
 	return true;
 }
 
-bool MBFileParser::Write(const string& fname)
+bool MBFileParser::Write(IN const string& fname)
 {
 	if (!pmbs)
 		return false;
+	pmbs->setToInitial();
 	Json::Value root;
+	//write RCord
+	if (Body::m_s_rtype == RCORDS::CARDANANGLE)
+		root["RCord"] = Json::Value("Cardan Angle");
+	else if (Body::m_s_rtype == RCORDS::EULERANGLE)
+		root["RCord"] = Json::Value("Euler Angle");
+	else if (Body::m_s_rtype == RCORDS::EULERQUATERNION)
+		root["RCord"] = Json::Value("Euler Quaternion");
 	//write bodies
 	auto& jvec = pmbs->jointvec;
 	for (unsigned int i = 0; i < jvec.size(); ++i)
@@ -1034,7 +1140,7 @@ bool MBFileParser::Simulate()
 		return false;
 }
 
-bool MBFileParser::SaveDataAs(const string& fname, bool isbinary)
+bool MBFileParser::SaveDataAs(IN const string& fname,IN bool isbinary)
 {
 	if (!pmbs)
 		return false;
