@@ -41,6 +41,7 @@ private:
 	bool update(IN double t, IN double* y,IN double* dy);               //update q dq Tij Ui betai
 public:
 	friend class MBSystem;
+	friend class Solver;
 	TreeSystem(IN vector<JointBase*>& jvec);
 	bool calG0(IN double t,IN double* y, OUT MatrixXd& G0);
 	bool calG(IN double t,IN double* y, OUT MatrixXd& G);
@@ -96,6 +97,7 @@ protected:
 	VectorXd& calzbar(IN double t,IN double* y,IN double* dy);
 public:
 	friend class Equation;
+	friend class Solver;
 	friend class MBFileParser;
 	MBSystem();
 	~MBSystem();
@@ -120,6 +122,7 @@ protected:
 	MatrixXd L;
 	VectorXd R;
 public:
+	friend class Solver;
 	Equation(IN MBSystem* p);
 	~Equation();
 	MatrixXd& Left(IN double t,IN VectorXd& y);                    //y is state space variable.
@@ -142,6 +145,8 @@ private:
 	vector<double> tspan;
 	list<VectorXd> Y;
 	list<VectorXd> DY;
+	list<VectorXd> Q;
+	list<VectorXd> DQ;
 public:
 	friend class MBSystem;
 	friend class MBFileParser;

@@ -75,8 +75,8 @@ public:
 	virtual MatrixXd& calTij(IN double t,IN double* y);
 	virtual bool calytoq(IN double t,IN double* y);                             //calculate from y to q
 	virtual bool caldytodq(IN double t, IN double* dy);                         //calculate from dy to dq
-	virtual bool setCiP(IN const Matrix3d& c);                 //CiP CjQ is transformation matrix from
-	virtual bool setCjQ(IN const Matrix3d& c);                 //element cords to joint cords
+	virtual bool setCiP(IN const Matrix3d& c);                                  //CiP CjQ is transformation matrix from
+	virtual bool setCjQ(IN const Matrix3d& c);                                  //element cords to joint cords
 	/*function to write some joint config*/
 	virtual bool Write(OUT Json::Value& joint)const;
 };
@@ -97,6 +97,7 @@ public:
 	virtual inline unsigned int type()const;
 };
 
+/*the rotation axis is along x-axis and y-axis by default*/
 class Universe :public JointBase
 {
 	typedef Matrix<double, 3, -1> MatR3CX;

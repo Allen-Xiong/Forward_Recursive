@@ -409,7 +409,7 @@ bool MBSystem::calculate()
 /* Save the data:
 timespan
 generalized coordinates velocity acceleration
-absolute coordinates velocity acceleration*/
+absolute coordinates velocity*/
 bool MBSystem::SaveAs(IN string fname,IN bool isbinary)
 {
 	ofstream fout;
@@ -443,6 +443,10 @@ bool MBSystem::SaveAs(IN string fname,IN bool isbinary)
 			fout.write(reinterpret_cast<char*>(&item),dof *sizeof(double));
 		for (auto& item : psolver->DY)
 			fout.write(reinterpret_cast<char*>(item.data() + dof), dof * sizeof(double));
+		for (auto& item : psolver->Q)
+			fout.write(reinterpret_cast<char*>(item.data()), nc * sizeof(double));
+		for (auto& item : psolver->DQ)
+			fout.write(reinterpret_cast<char*>(item.data()), nc * sizeof(double));
 	}
 	else
 	{
@@ -457,6 +461,10 @@ bool MBSystem::SaveAs(IN string fname,IN bool isbinary)
 			fout << item.head(dof).transpose() << endl;
 		for (auto& item : psolver->DY)
 			fout << item.tail(dof).transpose() << endl;
+		for (auto& item : psolver->Q)
+			fout << item.transpose() << endl;
+		for (auto& item : psolver->DQ)
+			fout << item.transpose() << endl;
 	}
 	fout.close();
 	return true;
@@ -507,9 +515,11 @@ bool Solver::calculate()
 		tspan.push_back(t);
 		Y.push_back(y);
 		DY.push_back(dy);
-		if (cnt % 1000 == 0)
+		if (cnt % 1000 == 0 || abs(t - t_end) < dt)
 			cout << "time passed by " << t << " s." << endl;
 		dy = pe->Left(t, y).partialPivLu().solve(pe->Right(t, y));
+		Q.push_back(pe->pmbs->mbtree->qprev);
+		DQ.push_back(pe->pmbs->mbtree->dqprev);
 		y += dy * dt;
 		t += dt;
 		cnt++;
@@ -909,7 +919,7 @@ bool MBFileParser::Read(IN const string& fname)
 {
 	ifstream fin(fname, ios::binary);
 	if (!fin)
-		throw MBException("Open file failed!");
+		throw MBException("Open File failed!");
 	clear();
 	pmbs = new MBSystem();
 	Json::Reader reader;
@@ -929,7 +939,7 @@ bool MBFileParser::Read(IN const string& fname)
 	}
 	// create body
 	unsigned int nb = root["Body"].size();
-	bodyvec.resize(nb);
+	bodyvec.resize(nb, nullptr);
 	int id;
 	double mass;
 	for (unsigned int i = 0; i < nb; ++i)

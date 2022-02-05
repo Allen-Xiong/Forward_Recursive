@@ -1,5 +1,5 @@
 {
-   "RCord" : "Cardan Angle",
+   "RCord" : "Euler Quaternion",
    "Body" : [
       {
          "ConfigFile" : "SolarArrayData.txt",
@@ -39,11 +39,11 @@
          "Bj_Id" : 0,
          "CiP" : [ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
          "CjQ" : [ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-         "Position" : [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ],
+         "Position" : [ 5e7, 0.0, 0.0, 0.0, 0.0, 0.0 ],
          "Rhoi" : [ 0.0, 0.0, 0.0 ],
          "Rhoj" : [ 0.0, 0.0, 0.0 ],
          "Type" : "Virtual",
-         "Velocity" : [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+         "Velocity" : [ 0.0, 2e3, 0.0, 0.0, 0.0, 0.0 ]
       },
       {
          "Bi_Id" : 2,
@@ -97,7 +97,7 @@
       },
       "Tspan" : {
          "End" : 5.0,
-         "Nstep" : 5000,
+         "Nstep" : 30000,
          "Start" : 0.0
       }
    }

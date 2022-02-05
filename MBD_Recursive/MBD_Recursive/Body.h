@@ -7,8 +7,8 @@ using namespace Eigen;
 class Body
 {
 protected:
-	int id = -1;                               // id 
-	double tM = 0.;                            //total Mass
+	int id = -1;                               
+	double tM = 0.;                            
 	double* pos = nullptr;
 	double* vel = nullptr;
 	double* acc = nullptr;
@@ -19,8 +19,8 @@ public:
 		FLEXIBLE = 0x01,
 		BASE = 0x02
 	};
-	static RCORDS m_s_rtype;                   //type of rotation coordinates.
-	static unsigned int NC;                    //number of the absolute coordinates.
+	static RCORDS m_s_rtype;                                               //type of rotation coordinates.
+	static unsigned int NC;                                                //number of the absolute coordinates.
 	static bool setRcords(IN RCORDS rtype);
 	Body(IN double m)noexcept;
 	Body()noexcept;
@@ -31,14 +31,14 @@ public:
 	bool A(OUT Matrix3d& M)const;
 	virtual bool setID(IN int i);
 	virtual unsigned int type()const = 0;
-	virtual bool calMass(OUT MatrixXd& M,IN int k) = 0;                   // M is the system mass matrix, k represents the begin location.
+	virtual bool calMass(OUT MatrixXd& M,IN int k) = 0;                    // M is the system mass matrix, k represents the begin location.
 	virtual unsigned int nMode()const = 0;
 	virtual Vector3d angularVel()const;
-	virtual Vector3d angularVel(IN int EID)const;                      // angular velocity of the element on the body.
-	virtual Vector3d rhoP(IN Vector3d& _rp,IN int EID)const;             //the conjoined vector of element P on the body
-	virtual Vector3d translationalVel(IN Vector3d& _rp)const;          //the translational velocity of P on the body.
-	virtual Vector3d translationalVel(IN Vector3d& _rp,IN int EID)const; //the translational velocity of element P on the body.
-	virtual VectorXd inertiaForce();                                //the inertia force of the body.
+	virtual Vector3d angularVel(IN int EID)const;                          // angular velocity of the element on the body.
+	virtual Vector3d rhoP(IN Vector3d& _rp,IN int EID)const;               //the conjoined vector of element P on the body
+	virtual Vector3d translationalVel(IN Vector3d& _rp)const;              //the translational velocity of P on the body.
+	virtual Vector3d translationalVel(IN Vector3d& _rp,IN int EID)const;   //the translational velocity of element P on the body.
+	virtual VectorXd inertiaForce();                                       //the inertia force of the body.
 	virtual ~Body();
 	virtual bool Write(OUT Json::Value& body)const;
 protected:

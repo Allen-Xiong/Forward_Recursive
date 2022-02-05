@@ -71,10 +71,6 @@ Matrix3d& JointBase::calBiP()
 	Map<VectorXd> a(yi + DOF(), Bi->nMode());
 	auto& PSI_iP = static_cast<FlexibleBody*>(Bi)->PSI[NP];
 	Vector3d v = PSI_iP * a;
-	/*Matrix3d til;
-	AUX::tilde(v, til);
-	BiP.setIdentity();
-	BiP += til;*/
 	AUX::CAtoA(v.data(), BiP);
 	return BiP;
 }
@@ -87,10 +83,6 @@ Matrix3d& JointBase::calBjQ()
 	Map<VectorXd> a(Bj->pos + Body::NC, Bj->nMode());
 	auto& PSI_jQ = static_cast<FlexibleBody*>(Bj)->PSI[NQ];
 	Vector3d v = PSI_jQ * a;
-	/*Matrix3d til;
-	AUX::tilde(v, til);
-	BjQ.setIdentity();
-	BjQ += til;*/
 	AUX::CAtoA(v.data(), BjQ);
 	return BjQ;
 }
@@ -357,9 +349,6 @@ bool JointBase::calytoq(IN double t, IN double* y)
 			Bi->pos[nc + i] = yi[del + i];
 		}
 	}
-	/*for (unsigned int i = 0; i < Body::NC+Bi->nMode(); ++i)
-		cout << Bi->pos[i] << " ";
-	cout << endl;*/
 	return true;
 }
 /*check once*/
@@ -819,7 +808,7 @@ bool RevoluteDrive::calytoq(IN double t, IN double* y)
 
 bool RevoluteDrive::caldytodq(IN double t, IN double* dy)
 {
-	double v = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	double v = (pf1(t + DELTATIME) - pf1(t - DELTATIME)) / (2 * DELTATIME);
 	dyi[0] = v;
 	JointBase::caldytodq(t, dy);
 	return true;
@@ -827,13 +816,13 @@ bool RevoluteDrive::caldytodq(IN double t, IN double* dy)
 
 VectorXd RevoluteDrive::Acceleration(IN double t)
 {
-	double a = (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+	double a = (pf1(t + DELTATIME) - 2 * pf1(t) + pf1(t - DELTATIME)) / (DELTATIME * DELTATIME);
 	return VectorXd::Constant(1, a);
 }
 
 VectorXd RevoluteDrive::Velocity(IN double t)
 {
-	double v=(pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	double v=(pf1(t + DELTATIME) - pf1(t - DELTATIME)) / (2 * DELTATIME);
 	return VectorXd::Constant(1, v);
 }
 
@@ -844,13 +833,13 @@ VectorXd RevoluteDrive::Position(IN double t)
 
 void RevoluteDrive::Acceleration(IN double t,OUT double* ddy) const
 {
-	ddy[0]= (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+	ddy[0]= (pf1(t + DELTATIME) - 2 * pf1(t) + pf1(t - DELTATIME)) / (DELTATIME * DELTATIME);
 	return;
 }
 
 void RevoluteDrive::Velocity(IN double t,OUT double* dy) const
 {
-	dy[0] = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+	dy[0] = (pf1(t + DELTATIME) - pf1(t - DELTATIME)) / (2 * DELTATIME);
 	return;
 }
 
@@ -886,9 +875,9 @@ bool UniverseDrive::calytoq(IN double t, IN double* y)
 bool UniverseDrive::caldytodq(IN double t, IN double* dy)
 {
 	if (pf1)
-		dyi[0] = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+		dyi[0] = (pf1(t + DELTATIME) - pf1(t - DELTATIME)) / (2 * DELTATIME);
 	if (pf2)
-		dyi[1] = (pf2(t + MILLISECOND) - pf2(t - MILLISECOND)) / (2 * MILLISECOND);
+		dyi[1] = (pf2(t + DELTATIME) - pf2(t - DELTATIME)) / (2 * DELTATIME);
 	JointBase::caldytodq(t, dy);
 	return true;
 }
@@ -898,9 +887,9 @@ VectorXd UniverseDrive::Acceleration(IN double t)
 	VectorXd a(2);
 	a << 0, 0;
 	if (pf1)
-		a(0) = (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+		a(0) = (pf1(t + DELTATIME) - 2 * pf1(t) + pf1(t - DELTATIME)) / (DELTATIME * DELTATIME);
 	if (pf2)
-		a(1) = (pf2(t + MILLISECOND) - 2 * pf2(t) + pf2(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+		a(1) = (pf2(t + DELTATIME) - 2 * pf2(t) + pf2(t - DELTATIME)) / (DELTATIME * DELTATIME);
 	return a;
 }
 
@@ -909,9 +898,9 @@ VectorXd UniverseDrive::Velocity(IN double t)
 	VectorXd v(2);
 	v << 0, 0;
 	if (pf1)
-		v(0) = (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+		v(0) = (pf1(t + DELTATIME) - pf1(t - DELTATIME)) / (2 * DELTATIME);
 	if (pf2)
-		v(1) = (pf2(t + MILLISECOND) - pf2(t - MILLISECOND)) / (2 * MILLISECOND);
+		v(1) = (pf2(t + DELTATIME) - pf2(t - DELTATIME)) / (2 * DELTATIME);
 	return v;
 }
 
@@ -929,17 +918,17 @@ VectorXd UniverseDrive::Position(IN double t)
 void UniverseDrive::Acceleration(IN double t,OUT double* ddy) const
 {
 	if (pf1)
-		ddy[0]= (pf1(t + MILLISECOND) - 2 * pf1(t) + pf1(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+		ddy[0]= (pf1(t + DELTATIME) - 2 * pf1(t) + pf1(t - DELTATIME)) / (DELTATIME * DELTATIME);
 	if (pf2)
-		ddy[1]= (pf2(t + MILLISECOND) - 2 * pf2(t) + pf2(t - MILLISECOND)) / (MILLISECOND * MILLISECOND);
+		ddy[1]= (pf2(t + DELTATIME) - 2 * pf2(t) + pf2(t - DELTATIME)) / (DELTATIME * DELTATIME);
 }
 
 void UniverseDrive::Velocity(IN	double t,OUT double* dy) const
 {
 	if (pf1)
-		dy[0]= (pf1(t + MILLISECOND) - pf1(t - MILLISECOND)) / (2 * MILLISECOND);
+		dy[0]= (pf1(t + DELTATIME) - pf1(t - DELTATIME)) / (2 * DELTATIME);
 	if (pf2)
-		dy[1]= (pf2(t + MILLISECOND) - pf2(t - MILLISECOND)) / (2 * MILLISECOND);
+		dy[1]= (pf2(t + DELTATIME) - pf2(t - DELTATIME)) / (2 * DELTATIME);
 }
 
 void UniverseDrive::Position(IN double t,OUT double* y) const

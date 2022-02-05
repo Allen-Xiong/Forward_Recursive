@@ -19,7 +19,7 @@
 
 constexpr double PI=3.1415926535898;
 constexpr double MILLISECOND = 0.001;
-
+constexpr double DELTATIME = 0.00001;
 
 #define INI_FAILURE(str) string(str)+string(" Initialization Failure")
 
@@ -65,13 +65,13 @@ namespace AUX
 	bool EQVCorrect(IN const double* q, IN double* dq,IN double Atol,IN double Rtol,IN unsigned int Maxiter);
 }
 
-class MBException
+class MBException:public exception
 {
 private:
 	string msg;
 public:
 	MBException(IN const string& s) { msg = s; };
 	~MBException() = default;
-	virtual const string& what() const { return msg; };
+	virtual const char* what() const { return msg.c_str(); };
 };
 

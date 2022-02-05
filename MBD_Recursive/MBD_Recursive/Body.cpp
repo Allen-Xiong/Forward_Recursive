@@ -596,7 +596,7 @@ VectorXd FlexibleBody::inertiaForce()
 	//calculate w1
 	w1 = w.cross(w.cross(A * (g1 + g2 * a)));
 	w1 += 2 * w.cross(A * (g2 * da));
-	//calculate w2
+	//calculate w2 assume M22 is already calculated.
 	w2 = w.cross(M22 * w);
 	Matrix3d temp = Matrix3d::Zero();
 	for (unsigned int i = 0; i < s; ++i)
