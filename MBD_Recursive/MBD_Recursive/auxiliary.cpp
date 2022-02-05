@@ -1,6 +1,6 @@
 #include "auxiliary.h"
 
-extern double AUX::Tol = 1e-3;
+extern double AUX::Tol = 1e-20;
 
 /*check once*/
 bool AUX::EQtoA(IN double* q, OUT Matrix3d& M)
@@ -33,6 +33,7 @@ bool AUX::EAtoA(IN double* q, OUT Matrix3d& M)
 	M(2, 2) = c2;
 	return true;
 }
+/*check twice*/
 bool AUX::CAtoA(IN double* q, OUT Matrix3d& M)
 {
 	double s1 = sin(q[0]), c1 = cos(q[0]);
@@ -129,6 +130,8 @@ bool AUX::AtoEQ(IN const Matrix3d& A, OUT double* q)
 bool AUX::AtoEA(IN const Matrix3d& A, OUT double* q)
 {
 	double s2 = sqrt(1 - A(2, 2) * A(2, 2));
+	if (abs(s2) < AUX::Tol)
+		throw MBException("Using Euler Angle leads to singularity.");
 	q[1] = acos(A(2, 2));
 	q[0] = atan2(A(0, 2) / s2, -A(1, 2) / s2);
 	q[2] = atan2(A(2, 0) / s2, A(2, 1) / s2);
@@ -138,6 +141,8 @@ bool AUX::AtoEA(IN const Matrix3d& A, OUT double* q)
 bool AUX::AtoCA(IN const Matrix3d& A, OUT double* q)
 {
 	double c2 = sqrt(1 - A(0, 2) * A(0, 2));
+	if (abs(c2)<AUX::Tol)
+		throw MBException("Using Cardan Angle leads to singularity.");
 	q[1] = asin(A(0, 2));
 	q[2] = atan2(-A(0, 1) / c2, A(0, 0) / c2);
 	q[0] = atan2(-A(1, 2) / c2, A(2, 2) / c2);
